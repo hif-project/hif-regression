@@ -1,0 +1,8 @@
+# Coordinated, released toolchain baseline.
+# Answers: "does the published HIF toolchain still reproduce successfully?"
+# Bump deliberately, in a reviewed commit, when adopting a new coordinated
+# release. Keyed identically to manifests/repositories.yaml.
+hif-core: v1.0.0
+hif-frontend: v1.0.0
+hif-backend: v1.0.0
+hif-muffin: v1.0.0

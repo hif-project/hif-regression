@@ -35,27 +35,32 @@ across a curated HDL corpus and pinned external benchmark suites.
 
 Two separate questions, two separate manifests under `manifests/`:
 
-- `manifests/stable.env` - the coordinated, released toolchain baseline
+- `manifests/stable.yaml` - the coordinated, released toolchain baseline
   (currently `v1.0.0` for all four repos). "Does the published toolchain
   still reproduce successfully?" Run manually, or on a slower schedule.
-- `manifests/develop.env` - floating development integration (all four repos
+- `manifests/develop.yaml` - floating development integration (all four repos
   at `develop` HEAD). "Do today's development branches still integrate
   together?" This is what the nightly runs by default.
+
+Both are keyed identically to `manifests/repositories.yaml` (below).
 
 ## Running locally
 
 ```sh
-scripts/build_toolchain.sh --manifest develop --build-type Release --parallel 2
+scripts/build_toolchain.py --manifest develop --build-type Release --parallel 2
 ```
 
-This clones all four repos fresh into `.workspace/` (gitignored - never
+`manifests/repositories.yaml` owns the build graph - what to clone, and in
+what order (a topological sort of its `depends_on`, not a hardcoded list).
+The script clones every repo fresh into `.workspace/` (gitignored - never
 reuses or relies on any pre-existing sibling checkout on your machine),
-builds them in dependency order (`hif-core` first; `hif-frontend`,
-`hif-backend`, `hif-muffin` each discover it via `-DHIF_DIR=.workspace/install`,
-the shared install prefix), and writes `.workspace/toolchain.env` with the
-resolved paths for later steps. Build parallelism is capped at
-`--parallel 2` by default - unbounded parallelism has previously exhausted
-memory on GitHub-hosted runners while compiling `hif-core`.
+builds them in that order (`hif-core` first; the rest discover it via
+`-DHIF_DIR=.workspace/install`, the shared install prefix - see each
+repo's `cmake_args_template` in `repositories.yaml`), and writes
+`.workspace/toolchain.env` with the resolved paths for later steps. Build
+parallelism is capped at `--parallel 2` by default - unbounded parallelism
+has previously exhausted memory on GitHub-hosted runners while compiling
+`hif-core`.
 
 `--build-type` defaults to `Release`. hif-regression measures integration and
 corpus behavior, not development ergonomics, and a known slow tree-
@@ -93,16 +98,24 @@ understand completely - not a benchmark dump. Categories: `combinational`,
 controlled semantic coverage, not quantity.
 
 Each design is a plain source file (`designs/<category>/<name>.v`, or a
-folder for genuinely multi-file designs). By default the runner exercises
-every layer (frontend parse, HIF regeneration, backend regen, regenerated-HDL
-re-parse) and expects a clean `PASS` at each - for our own corpus, regression
-means failure. A design only needs an optional `<name>.json` sidecar next to
-it when it deviates from that default (e.g. opting into Muffin
-instrumentation, or restricting which layers apply).
+folder for genuinely multi-file designs), run through a named **pipeline**
+- an ordered tool chain defined in `manifests/pipelines.yaml`, built from the
+tool registry in `manifests/tools.yaml`. Every category has a default
+pipeline (`suite_defaults` in `pipelines.yaml`, currently `plain_roundtrip`
+- frontend parse, HIF regeneration, backend regen, regenerated-HDL reparse -
+everywhere) and expects a clean `PASS` at each step - for our own corpus,
+regression means failure. A design only needs an optional `<name>.json`
+sidecar when it deviates from its category's default, e.g. `and2.json`
+selects `"pipeline": "muffin_roundtrip"` to also probe Muffin instrumentation.
 
 **To add a new curated design:** drop the source file in the right category,
-add a `.json` sidecar only if the defaults don't fit, and run
+add a `.json` sidecar only if the default pipeline doesn't fit, and run
 `scripts/run_regression.py --only <name>` to check it before committing.
+**To add a new tool** (a future `ddt`, another backend, ...): add it to
+`tools.yaml` (command + artifact templates - see that file's header
+comment) and reference it from a pipeline in `pipelines.yaml`. No runner
+code changes - `run_regression.py`/`pipeline_engine.py` have no tool-specific
+knowledge.
 
 ## External benchmarks
 
@@ -130,14 +143,16 @@ notes - these corpora are not uniformly licensed, don't assume otherwise.
 
 ## Adding a future HIF tool to the integration graph
 
-1. Add its ref to both `manifests/stable.env` and `manifests/develop.env`.
-2. Add a build step to `scripts/build_toolchain.sh` after its dependencies,
-   installing into the same shared prefix.
+1. Add it to `manifests/repositories.yaml` (repository URL, `depends_on`,
+   `cmake_args_template`) - build order is derived automatically.
+2. Add its ref to both `manifests/stable.yaml` and `manifests/develop.yaml`.
 3. If it has its own CTest suite, add a step to run it in
    `.github/workflows/nightly.yml`.
-4. If it's relevant to the curated corpus (e.g. it consumes HIF like
-   hif-muffin does), extend the relevant designs' sidecar metadata rather
-   than inventing a parallel corpus.
+4. If it's relevant to the curated corpus, add its executable(s) to
+   `manifests/tools.yaml` and reference them from a pipeline in
+   `manifests/pipelines.yaml` (a new named pipeline, or a probe on an
+   existing one) rather than inventing a parallel corpus or touching
+   runner code.
 
 ## What the nightly checks
 

@@ -27,26 +27,30 @@ CLEAN_REJECT_PATTERNS = [
 ]
 
 
-class Tools:
-    def __init__(self, bin_dir=None):
-        self.verilog2hif = self._find("verilog2hif", bin_dir)
-        self.hif2verilog = self._find("hif2verilog", bin_dir)
-        self.muffin = self._find("muffin", bin_dir)
+def find_tool(name, bin_dir=None):
+    """Resolve a tool binary by name, under --bin-dir first, then PATH."""
+    if bin_dir:
+        candidate = Path(bin_dir) / name
+        if candidate.exists():
+            return str(candidate)
+    found = shutil.which(name)
+    if not found:
+        raise SystemExit(
+            f"required tool '{name}' not found on PATH or under --bin-dir "
+            f"(did you `source .workspace/toolchain.env` and add $PREFIX/bin "
+            f"to PATH, or pass --bin-dir?)"
+        )
+    return found
 
-    @staticmethod
-    def _find(name, bin_dir):
-        if bin_dir:
-            candidate = Path(bin_dir) / name
-            if candidate.exists():
-                return str(candidate)
-        found = shutil.which(name)
-        if not found:
-            raise SystemExit(
-                f"required tool '{name}' not found on PATH or under --bin-dir "
-                f"(did you `source .workspace/toolchain.env` and add $PREFIX/bin "
-                f"to PATH, or pass --bin-dir?)"
-            )
-        return found
+
+class Tools:
+    """Eagerly resolves the fixed three tools external-regression uses
+    directly (no pipeline/tool-registry involved there)."""
+
+    def __init__(self, bin_dir=None):
+        self.verilog2hif = find_tool("verilog2hif", bin_dir)
+        self.hif2verilog = find_tool("hif2verilog", bin_dir)
+        self.muffin = find_tool("muffin", bin_dir)
 
 
 def run_tool(argv, cwd, timeout_s):

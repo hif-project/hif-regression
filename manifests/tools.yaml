@@ -1,0 +1,59 @@
+# Tool capability registry: what each executable consumes/produces, how to
+# invoke it, and how the runner locates the artifact it produced.
+#
+# `command` is a literal argv template. command[0] is the binary name,
+# resolved via --bin-dir/PATH (see toolchain_classify.find_tool) - not a
+# path itself. Remaining entries are substituted with {input}/{name}/
+# {workdir} (the pipeline engine provides these; no other placeholders
+# exist - this is argv substitution, not a scripting language). Tools that
+# take multiple positional input files (only verilog2hif/vhdl2hif today,
+# for multi-file designs) use {inputs} instead of {input}.
+#
+# `artifact` is the path the runner checks for after a successful (exit 0,
+# not timed out) run, to decide PASS vs CRASH and to hand to the next
+# pipeline step. May contain a glob (*) when the tool's own naming isn't
+# fully predictable (e.g. hif2verilog names output after the surviving
+# DesignUnit, not always {name}) - the runner requires it to resolve to
+# exactly one file; zero or multiple matches is a hard error, not a guess.
+
+verilog2hif:
+  repository: hif-frontend
+  consumes: verilog
+  produces: hif
+  command: ["verilog2hif", "-o", "{name}", "{inputs}"]
+  artifact: "{workdir}/{name}.hif.xml"
+
+vhdl2hif:
+  repository: hif-frontend
+  consumes: vhdl
+  produces: hif
+  command: ["vhdl2hif", "-o", "{name}", "{inputs}"]
+  artifact: "{workdir}/{name}.hif.xml"
+
+hif2verilog:
+  repository: hif-backend
+  consumes: hif
+  produces: verilog
+  command: ["hif2verilog", "{input}", "-D", "{workdir}/regen"]
+  artifact: "{workdir}/regen/*.v"
+
+hif2vhdl:
+  repository: hif-backend
+  consumes: hif
+  produces: vhdl
+  command: ["hif2vhdl", "{input}", "-D", "{workdir}/regen"]
+  artifact: "{workdir}/regen/*.vhd"
+
+muffin_instrument:
+  repository: hif-muffin
+  consumes: hif
+  produces: hif
+  command: ["muffin", "{input}", "--instrument", "-o", "{workdir}/{name}.instrumented.hif.xml"]
+  artifact: "{workdir}/{name}.instrumented.hif.xml"
+
+muffin_list_faults:
+  repository: hif-muffin
+  consumes: hif
+  produces: faults_json
+  command: ["muffin", "{input}", "--list-faults", "{workdir}/{name}.faults.json"]
+  artifact: "{workdir}/{name}.faults.json"

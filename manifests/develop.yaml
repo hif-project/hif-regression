@@ -1,7 +1,7 @@
 # Floating development integration.
 # Answers: "do today's development branches still integrate together?"
 # This is what the nightly runs by default.
-HIF_CORE_REF=develop
-HIF_FRONTEND_REF=develop
-HIF_BACKEND_REF=develop
-HIF_MUFFIN_REF=develop
+hif-core: develop
+hif-frontend: develop
+hif-backend: develop
+hif-muffin: develop
