@@ -1,0 +1,26 @@
+{
+  "epfl/arithmetic": {
+    "arithmetic/adder.v": {"stages": {"frontend": {"status": "PASS", "reference_elapsed_s": 244.1}}},
+    "arithmetic/bar.v": {"stages": {"frontend": {"status": "TIMEOUT"}}},
+    "arithmetic/div.v": {"stages": {"frontend": {"status": "TIMEOUT"}}},
+    "arithmetic/hyp.v": {"stages": {"frontend": {"status": "TIMEOUT"}}},
+    "arithmetic/log2.v": {"stages": {"frontend": {"status": "TIMEOUT"}}},
+    "arithmetic/max.v": {"stages": {"frontend": {"status": "TIMEOUT"}}},
+    "arithmetic/multiplier.v": {"stages": {"frontend": {"status": "TIMEOUT"}}},
+    "arithmetic/sin.v": {"stages": {"frontend": {"status": "TIMEOUT"}}},
+    "arithmetic/sqrt.v": {"stages": {"frontend": {"status": "TIMEOUT"}}},
+    "arithmetic/square.v": {"stages": {"frontend": {"status": "TIMEOUT"}}}
+  },
+  "epfl/random_control": {
+    "random_control/cavlc.v": {"stages": {"frontend": {"status": "PASS", "reference_elapsed_s": 2.6}}},
+    "random_control/ctrl.v": {"stages": {"frontend": {"status": "PASS", "reference_elapsed_s": 0.4}}},
+    "random_control/dec.v": {"stages": {"frontend": {"status": "PASS", "reference_elapsed_s": 1.6}}},
+    "random_control/i2c.v": {"stages": {"frontend": {"status": "PASS", "reference_elapsed_s": 13.3}}},
+    "random_control/int2float.v": {"stages": {"frontend": {"status": "PASS", "reference_elapsed_s": 0.5}}},
+    "random_control/priority.v": {"stages": {"frontend": {"status": "PASS", "reference_elapsed_s": 8.6}}},
+    "random_control/router.v": {"stages": {"frontend": {"status": "PASS", "reference_elapsed_s": 0.7}}},
+    "random_control/arbiter.v": {"stages": {"frontend": {"status": "TIMEOUT"}}},
+    "random_control/mem_ctrl.v": {"stages": {"frontend": {"status": "TIMEOUT"}}},
+    "random_control/voter.v": {"stages": {"frontend": {"status": "TIMEOUT"}}}
+  }
+}

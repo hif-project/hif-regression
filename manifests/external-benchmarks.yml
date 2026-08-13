@@ -16,7 +16,16 @@ logikbench:
   suites:
     - path: logikbench/benchmarks/basic
       name: basic
+      # RTL only - each <circuit>/ also has a testbench/test_*_smoke.v that
+      # instantiates the circuit and is not self-contained on its own (not
+      # a design under RTL regression here, and not a crash when excluded).
+      file_glob: "*/rtl/*.v"
       note: plain behavioral RTL, MIT. Verilog lives under <circuit>/rtl/*.v.
+      exclude:
+        - path: icg/rtl/icg.v
+          reason: requires an external library cell (la_clkicgand) not present in this suite path - not self-contained, not a HIF parser crash.
+        - path: latch/rtl/latch.v
+          reason: requires an external library cell (la_vlatq) not present in this suite path - not self-contained, not a HIF parser crash.
     - path: logikbench/benchmarks/iscas85
       name: iscas85
       note: no formal license (pre-dates modern OSS licensing; upstream README marks it free for academic/commercial use). Verilog lives under <circuit>/rtl/*.v.
