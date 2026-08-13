@@ -1,0 +1,40 @@
+# Pinned external HDL benchmark corpora, fetched at runtime into
+# external/.cache/ (gitignored, never vendored). A deliberate update of `ref`
+# is a normal, reviewable commit - the runner never follows a floating branch
+# for these.
+#
+# License note: do not assume uniform per-repository licensing. Some of these
+# suites bundle files from multiple upstream academic/open-source sources
+# under different licenses than the repository-level LICENSE file. Where that
+# is known, it is noted per suite below; verify upstream LICENSE files under
+# the fetched path before redistributing anything derived from these corpora.
+
+logikbench:
+  repository: https://github.com/zeroasiccorp/logikbench.git
+  ref: 891ced851ea4c2f9a46f6ab991eeee199e2fd516 # HEAD as of 2026-08-13, main branch
+  license: MIT (repository-level) - NOT uniform, see notes below
+  suites:
+    - path: logikbench/benchmarks/basic
+      name: basic
+      note: plain behavioral RTL, MIT
+    - path: logikbench/benchmarks/iscas85
+      name: iscas85
+      note: no formal license (pre-dates modern OSS licensing; upstream README marks it free for academic/commercial use)
+  notes: >
+    Repository root is MIT (Zero ASIC Corporation), but logikbench/benchmarks/
+    vendors designs from many upstream sources with their own licenses, e.g.
+    ISC (blocks/serv, blocks/picorv32), Solderpad (large/cva6, large/wally),
+    Apache-2.0 (several blocks/*), BSD-2/3-Clause (large/blackparrot,
+    blocks/openpiton). Only `basic` and `iscas85` are pinned as suites here;
+    other categories (large/, blocks/, koios/) are out of scope for this
+    repository's regression corpus and were not reviewed for licensing.
+
+epfl:
+  repository: https://github.com/lsils/benchmarks.git
+  ref: 0060e156826e733d69bf5b3322d1bdd0d03a1f9a # HEAD as of 2026-08-13, master branch
+  license: MIT (uniform - no nested LICENSE/NOTICE files found)
+  suites:
+    - path: arithmetic
+      name: arithmetic
+    - path: random_control
+      name: random_control

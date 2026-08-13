@@ -1,0 +1,14 @@
+# Ephemeral build workspace created by scripts/build_toolchain.sh
+# (fresh clones + builds + install prefix - never committed).
+/.workspace/
+
+# Runtime cache for external benchmark corpora (fetched by ref, never vendored).
+/external/.cache/
+
+# Generated regression reports (JSON + logs). Checked-in baselines live under
+# manifests/expectations/ instead - those are reviewed and committed deliberately.
+/reports/*.json
+/reports/*.log
+
+__pycache__/
+*.pyc
