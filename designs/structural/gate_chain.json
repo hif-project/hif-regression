@@ -1,3 +1,0 @@
-{
-    "note": "hif2verilog currently drops primitive-gate instance statements on regeneration (emits an empty ';' per instance instead), while still emitting always-blocks that reference the now-undriven internal nets. Backend regeneration therefore produces syntactically broken Verilog for this design today - expected to show as CLEAN_REJECT at the reparse layer, not a runner bug. Real hif-backend limitation, not fixed here."
-}
