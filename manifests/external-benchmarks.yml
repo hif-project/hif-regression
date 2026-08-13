@@ -16,10 +16,10 @@ logikbench:
   suites:
     - path: logikbench/benchmarks/basic
       name: basic
-      note: plain behavioral RTL, MIT
+      note: plain behavioral RTL, MIT. Verilog lives under <circuit>/rtl/*.v.
     - path: logikbench/benchmarks/iscas85
       name: iscas85
-      note: no formal license (pre-dates modern OSS licensing; upstream README marks it free for academic/commercial use)
+      note: no formal license (pre-dates modern OSS licensing; upstream README marks it free for academic/commercial use). Verilog lives under <circuit>/rtl/*.v.
   notes: >
     Repository root is MIT (Zero ASIC Corporation), but logikbench/benchmarks/
     vendors designs from many upstream sources with their own licenses, e.g.

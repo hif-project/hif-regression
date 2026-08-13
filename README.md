@@ -111,7 +111,14 @@ repository + commit SHA + sub-path - never a floating branch. Suites are
 fetched into `external/.cache/` (gitignored) at runtime; nothing is vendored
 into git. Bumping a pinned `ref` is a deliberate, reviewable commit.
 
-Results are classified per file as `PASS`, `CLEAN_REJECT`, `CRASH`, or
+```sh
+pip install pyyaml  # only extra Python dependency, used to parse the manifest
+python3 scripts/run_external_regression.py
+```
+
+Only the frontend layer (`verilog2hif`) is exercised for external files today
+- matching the scope of the prior informal investigation this pins itself
+against. Results are classified per file as `PASS`, `CLEAN_REJECT`, `CRASH`, or
 `TIMEOUT`. `manifests/expectations/` holds the checked-in baseline once one
 exists for a suite (see that directory's README for the exact regression /
 improvement policy) - the primary rule is **zero unexpected crashes**.

@@ -23,25 +23,21 @@ process is never HIF's own controlled rejection path in this codebase.
 import argparse
 import dataclasses
 import json
-import re
 import shutil
-import subprocess
 import sys
-import time
 from pathlib import Path
 
-DEFAULT_TIMEOUT_S = 60
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from toolchain_classify import (  # noqa: E402
+    DEFAULT_TIMEOUT_S,
+    STATUS_SEVERITY,
+    Tools,
+    classify,
+    run_tool,
+    trim_result,
+)
+
 DEFAULT_LAYERS = ["frontend", "backend", "reparse"]
-STATUS_SEVERITY = {"PASS": 0, "CLEAN_REJECT": 1, "TIMEOUT": 2, "CRASH": 3}
-
-# Minimal, explicit, reviewable. Add to this list only after confirming a new
-# message is genuinely HIF's own deliberate-rejection convention, not a typo
-# match against something else.
-CLEAN_REJECT_PATTERNS = [
-    re.compile(r"is not supported", re.IGNORECASE),
-]
-
-MAX_CAPTURED_OUTPUT = 4000  # chars kept per stream in the JSON report
 
 
 @dataclasses.dataclass
@@ -53,28 +49,6 @@ class Design:
     layers: list
     muffin: bool
     note: str = ""
-
-
-class Tools:
-    def __init__(self, bin_dir=None):
-        self.verilog2hif = self._find("verilog2hif", bin_dir)
-        self.hif2verilog = self._find("hif2verilog", bin_dir)
-        self.muffin = self._find("muffin", bin_dir)
-
-    @staticmethod
-    def _find(name, bin_dir):
-        if bin_dir:
-            candidate = Path(bin_dir) / name
-            if candidate.exists():
-                return str(candidate)
-        found = shutil.which(name)
-        if not found:
-            raise SystemExit(
-                f"required tool '{name}' not found on PATH or under --bin-dir "
-                f"(did you `source .workspace/toolchain.env` and add $PREFIX/bin "
-                f"to PATH, or pass --bin-dir?)"
-            )
-        return found
 
 
 def discover_designs(corpus_root: Path):
@@ -119,54 +93,6 @@ def discover_designs(corpus_root: Path):
     return designs
 
 
-def _run(argv, cwd, timeout_s):
-    start = time.monotonic()
-    try:
-        proc = subprocess.run(
-            argv, cwd=cwd, capture_output=True, text=True, timeout=timeout_s
-        )
-        return {
-            "returncode": proc.returncode,
-            "stdout": proc.stdout,
-            "stderr": proc.stderr,
-            "elapsed_s": round(time.monotonic() - start, 3),
-            "timed_out": False,
-        }
-    except subprocess.TimeoutExpired as exc:
-        stdout = exc.stdout or ""
-        stderr = exc.stderr or ""
-        return {
-            "returncode": None,
-            "stdout": stdout.decode() if isinstance(stdout, bytes) else stdout,
-            "stderr": stderr.decode() if isinstance(stderr, bytes) else stderr,
-            "elapsed_s": round(time.monotonic() - start, 3),
-            "timed_out": True,
-        }
-
-
-def classify(run_result, artifact_ok):
-    if run_result["timed_out"]:
-        return "TIMEOUT"
-    rc = run_result["returncode"]
-    if rc == 0:
-        return "PASS" if artifact_ok else "CRASH"
-    if rc is not None and rc < 0:
-        return "CRASH"  # killed by a signal - never HIF's own deliberate exit()
-    stderr = run_result["stderr"] or ""
-    for pattern in CLEAN_REJECT_PATTERNS:
-        if pattern.search(stderr):
-            return "CLEAN_REJECT"
-    return "CRASH"  # unrecognized nonzero exit - stay conservative, surface it
-
-
-def _trim(run_result):
-    trimmed = dict(run_result)
-    for key in ("stdout", "stderr"):
-        if trimmed[key] and len(trimmed[key]) > MAX_CAPTURED_OUTPUT:
-            trimmed[key] = trimmed[key][:MAX_CAPTURED_OUTPUT] + "... [truncated]"
-    return trimmed
-
-
 def run_design(design: Design, tools: Tools, work_root: Path, timeout_s: int):
     work_dir = work_root / design.category / design.name
     work_dir.mkdir(parents=True, exist_ok=True)
@@ -174,12 +100,12 @@ def run_design(design: Design, tools: Tools, work_root: Path, timeout_s: int):
 
     def record(stage_name, run_result, artifact_ok):
         status = classify(run_result, artifact_ok)
-        stages[stage_name] = {"status": status, **_trim(run_result)}
+        stages[stage_name] = {"status": status, **trim_result(run_result)}
         return status
 
     hif_file = work_dir / f"{design.top}.hif.xml"
     if "frontend" in design.layers:
-        r = _run(
+        r = run_tool(
             [tools.verilog2hif, "-o", design.top, *[str(s) for s in design.sources]],
             cwd=work_dir, timeout_s=timeout_s,
         )
@@ -189,7 +115,7 @@ def run_design(design: Design, tools: Tools, work_root: Path, timeout_s: int):
     regen_dir = work_dir / "regen"
     regen_files = []
     if "backend" in design.layers:
-        r = _run(
+        r = run_tool(
             [tools.hif2verilog, str(hif_file), "-D", str(regen_dir)],
             cwd=work_dir, timeout_s=timeout_s,
         )
@@ -201,7 +127,7 @@ def run_design(design: Design, tools: Tools, work_root: Path, timeout_s: int):
         reparse_dir = work_dir / "reparse"
         reparse_dir.mkdir(exist_ok=True)
         reparsed_hif = reparse_dir / f"{design.top}.hif.xml"
-        r = _run(
+        r = run_tool(
             [tools.verilog2hif, "-o", design.top, *[str(f) for f in regen_files]],
             cwd=reparse_dir, timeout_s=timeout_s,
         )
@@ -210,7 +136,7 @@ def run_design(design: Design, tools: Tools, work_root: Path, timeout_s: int):
 
     if design.muffin:
         faults_json = work_dir / f"{design.top}.faults.json"
-        r = _run(
+        r = run_tool(
             [tools.muffin, str(hif_file), "--list-faults", str(faults_json)],
             cwd=work_dir, timeout_s=timeout_s,
         )
@@ -218,7 +144,7 @@ def run_design(design: Design, tools: Tools, work_root: Path, timeout_s: int):
             return {"design": design, "stages": stages}
 
         instrumented = work_dir / f"{design.top}.instrumented.hif.xml"
-        r = _run(
+        r = run_tool(
             [tools.muffin, str(hif_file), "--instrument", "-o", str(instrumented)],
             cwd=work_dir, timeout_s=timeout_s,
         )
