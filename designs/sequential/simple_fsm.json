@@ -1,3 +1,0 @@
-{
-    "note": "Regenerated Verilog references the localparam-named state values (IDLE/RUN/DONE) as bare identifiers without re-emitting their declaration - hif2verilog appears to drop localparam declarations on regeneration. Currently invisible to this runner's PASS/CLEAN_REJECT/CRASH/TIMEOUT classification (verilog2hif accepts the regenerated file without erroring), since that requires behavioral/declaration-level checking this repo does not do yet. Kept as-is and flagged here rather than worked around."
-}
