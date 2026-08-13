@@ -14,21 +14,21 @@
 # hif-core has none - it has no HIF dependency of its own.
 
 hif-core:
-  repository: https://github.com/esd-univr/hif-core.git
+  repository: https://github.com/hif-project/hif-core.git
   depends_on: []
   cmake_args_template: []
 
 hif-frontend:
-  repository: https://github.com/esd-univr/hif-frontend.git
+  repository: https://github.com/hif-project/hif-frontend.git
   depends_on: [hif-core]
   cmake_args_template: ["-DHIF_DIR={prefix}"]
 
 hif-backend:
-  repository: https://github.com/esd-univr/hif-backend.git
+  repository: https://github.com/hif-project/hif-backend.git
   depends_on: [hif-core, hif-frontend]
   cmake_args_template: ["-DHIF_DIR={prefix}"]
 
 hif-muffin:
-  repository: https://github.com/esd-univr/hif-muffin.git
+  repository: https://github.com/hif-project/hif-muffin.git
   depends_on: [hif-core, hif-frontend, hif-backend]
   cmake_args_template: ["-DHIF_DIR={prefix}"]

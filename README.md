@@ -19,10 +19,10 @@ against or imported by `hif-core`, `hif-frontend`, `hif-backend`,
 
 It currently validates:
 
-- [hif-core](https://github.com/esd-univr/hif-core) - shared AST/IR library
-- [hif-frontend](https://github.com/esd-univr/hif-frontend) - Verilog/VHDL -> HIF
-- [hif-backend](https://github.com/esd-univr/hif-backend) - HIF -> Verilog/VHDL(/SystemC)
-- [hif-muffin](https://github.com/esd-univr/hif-muffin) - RTL fault injection, built on the above
+- [hif-core](https://github.com/hif-project/hif-core) - shared AST/IR library
+- [hif-frontend](https://github.com/hif-project/hif-frontend) - Verilog/VHDL -> HIF
+- [hif-backend](https://github.com/hif-project/hif-backend) - HIF -> Verilog/VHDL(/SystemC)
+- [hif-muffin](https://github.com/hif-project/hif-muffin) - RTL fault injection, built on the above
 
 Each of those repos owns its own unit/product tests and CI. This repo does
 not duplicate those - it validates the four repos **together**: does the
