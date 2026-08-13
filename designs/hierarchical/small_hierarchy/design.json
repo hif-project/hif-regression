@@ -1,0 +1,4 @@
+{
+    "top": "top",
+    "note": "Three DesignUnits, two instances - exercises multi-file verilog2hif input and plain module instantiation. hif2verilog currently drops instance statements on regeneration (same root cause as structural/gate_chain.json) - expected to show as CLEAN_REJECT at the reparse layer, not a runner bug. Real hif-backend limitation, not fixed here."
+}

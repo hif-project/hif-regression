@@ -5,10 +5,12 @@
 # Runtime cache for external benchmark corpora (fetched by ref, never vendored).
 /external/.cache/
 
-# Generated regression reports (JSON + logs). Checked-in baselines live under
-# manifests/expectations/ instead - those are reviewed and committed deliberately.
+# Generated regression reports and scratch run artifacts. Checked-in
+# baselines live under manifests/expectations/ instead - those are reviewed
+# and committed deliberately.
 /reports/*.json
 /reports/*.log
+/reports/.run/
 
 __pycache__/
 *.pyc
