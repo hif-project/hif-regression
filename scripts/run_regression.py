@@ -3,8 +3,10 @@
 Curated-corpus regression runner for hif-regression.
 
 Drives designs/<category>/<name>.v (or <name>/ for multi-file designs)
-through the real toolchain (verilog2hif -> hif2verilog -> verilog2hif, plus
-optional muffin instrumentation), classifying each stage as one of:
+through a named pipeline (manifests/pipelines.yaml, built from
+manifests/tools.yaml) - by default the category's suite_defaults entry,
+overridable per design via a "pipeline" sidecar key. Classifies each stage
+as one of:
 
     PASS          - tool exited 0 and produced the expected artifact
     CLEAN_REJECT  - tool exited nonzero, not killed by a signal, and stderr
@@ -19,6 +21,9 @@ Rationale for signal-vs-exit-code as the primary signal: HIF's own
 deliberate-rejection macros (messageError/messageAssert, hif-core's
 Log.cpp) call exit(EXIT_FAILURE) - never a signal. A signal-terminated
 process is never HIF's own controlled rejection path in this codebase.
+
+This script has no tool-specific knowledge - see pipeline_engine.py and
+manifests/tools.yaml. Adding a future tool/pipeline is a manifest change.
 """
 import argparse
 import dataclasses
@@ -28,16 +33,8 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from toolchain_classify import (  # noqa: E402
-    DEFAULT_TIMEOUT_S,
-    STATUS_SEVERITY,
-    Tools,
-    classify,
-    run_tool,
-    trim_result,
-)
-
-DEFAULT_LAYERS = ["frontend", "backend", "reparse"]
+from pipeline_engine import load_pipelines, load_tools, run_pipeline  # noqa: E402
+from toolchain_classify import DEFAULT_TIMEOUT_S  # noqa: E402
 
 
 @dataclasses.dataclass
@@ -46,15 +43,15 @@ class Design:
     category: str
     sources: list
     top: str
-    layers: list
-    muffin: bool
+    pipeline: str
     note: str = ""
 
 
-def discover_designs(corpus_root: Path):
+def discover_designs(corpus_root: Path, suite_defaults: dict):
     designs = []
     for category_dir in sorted(p for p in corpus_root.iterdir() if p.is_dir()):
         category = category_dir.name
+        default_pipeline = suite_defaults.get(category)
         for entry in sorted(category_dir.iterdir()):
             if entry.name.startswith("."):
                 continue
@@ -66,8 +63,7 @@ def discover_designs(corpus_root: Path):
                     category=category,
                     sources=[entry],
                     top=meta.get("top", entry.stem),
-                    layers=meta.get("layers", DEFAULT_LAYERS),
-                    muffin=meta.get("muffin", False),
+                    pipeline=meta.get("pipeline", default_pipeline),
                     note=meta.get("note", ""),
                 ))
             elif entry.is_dir():
@@ -86,77 +82,23 @@ def discover_designs(corpus_root: Path):
                     category=category,
                     sources=sources,
                     top=top,
-                    layers=meta.get("layers", DEFAULT_LAYERS),
-                    muffin=meta.get("muffin", False),
+                    pipeline=meta.get("pipeline", default_pipeline),
                     note=meta.get("note", ""),
                 ))
     return designs
 
 
-def run_design(design: Design, tools: Tools, work_root: Path, timeout_s: int):
+def run_design(design: Design, pipelines: dict, tools: dict, bin_dir, work_root: Path, timeout_s: int):
+    if not design.pipeline:
+        raise SystemExit(
+            f"{design.category}/{design.name}: no pipeline resolved (no sidecar "
+            f"override and no suite_defaults entry for category '{design.category}')"
+        )
     work_dir = work_root / design.category / design.name
-    work_dir.mkdir(parents=True, exist_ok=True)
-    stages = {}
-
-    def record(stage_name, run_result, artifact_ok):
-        status = classify(run_result, artifact_ok)
-        stages[stage_name] = {"status": status, **trim_result(run_result)}
-        return status
-
-    hif_file = work_dir / f"{design.top}.hif.xml"
-    if "frontend" in design.layers:
-        r = run_tool(
-            [tools.verilog2hif, "-o", design.top, *[str(s) for s in design.sources]],
-            cwd=work_dir, timeout_s=timeout_s,
-        )
-        if record("frontend", r, hif_file.exists()) != "PASS":
-            return {"design": design, "stages": stages}
-
-    regen_dir = work_dir / "regen"
-    regen_files = []
-    if "backend" in design.layers:
-        r = run_tool(
-            [tools.hif2verilog, str(hif_file), "-D", str(regen_dir)],
-            cwd=work_dir, timeout_s=timeout_s,
-        )
-        regen_files = sorted(regen_dir.glob("*.v")) if regen_dir.exists() else []
-        if record("backend", r, bool(regen_files)) != "PASS":
-            return {"design": design, "stages": stages}
-
-    if "reparse" in design.layers:
-        reparse_dir = work_dir / "reparse"
-        reparse_dir.mkdir(exist_ok=True)
-        reparsed_hif = reparse_dir / f"{design.top}.hif.xml"
-        r = run_tool(
-            [tools.verilog2hif, "-o", design.top, *[str(f) for f in regen_files]],
-            cwd=reparse_dir, timeout_s=timeout_s,
-        )
-        if record("reparse", r, reparsed_hif.exists()) != "PASS":
-            return {"design": design, "stages": stages}
-
-    if design.muffin:
-        faults_json = work_dir / f"{design.top}.faults.json"
-        r = run_tool(
-            [tools.muffin, str(hif_file), "--list-faults", str(faults_json)],
-            cwd=work_dir, timeout_s=timeout_s,
-        )
-        if record("muffin_list_faults", r, faults_json.exists()) != "PASS":
-            return {"design": design, "stages": stages}
-
-        instrumented = work_dir / f"{design.top}.instrumented.hif.xml"
-        r = run_tool(
-            [tools.muffin, str(hif_file), "--instrument", "-o", str(instrumented)],
-            cwd=work_dir, timeout_s=timeout_s,
-        )
-        record("muffin_instrument", r, instrumented.exists())
-
-    return {"design": design, "stages": stages}
-
-
-def overall_status(stages):
-    if not stages:
-        return "PASS"
-    return max(stages.values(), key=lambda s: STATUS_SEVERITY[s["status"]])["status"]
+    result = run_pipeline(
+        design.pipeline, pipelines, tools, bin_dir, design.sources, work_dir, design.top, timeout_s
+    )
+    return {"design": design, "stages": result["stages"], "overall_status": result["overall_status"]}
 
 
 def build_report(results, manifest_label):
@@ -164,7 +106,7 @@ def build_report(results, manifest_label):
     counts = {}
     for res in results:
         design = res["design"]
-        status = overall_status(res["stages"])
+        status = res["overall_status"]
         counts.setdefault(design.category, {"PASS": 0, "CLEAN_REJECT": 0, "CRASH": 0, "TIMEOUT": 0})
         counts[design.category][status] += 1
         designs_out.append({
@@ -172,7 +114,7 @@ def build_report(results, manifest_label):
             "category": design.category,
             "top": design.top,
             "sources": [str(s) for s in design.sources],
-            "muffin": design.muffin,
+            "pipeline": design.pipeline,
             "note": design.note,
             "overall_status": status,
             "stages": res["stages"],
@@ -210,7 +152,7 @@ def print_summary(report):
         d for d in report["designs"] if d["overall_status"] != "PASS"
     ]
     if anomalies:
-        print(f"\n{len(anomalies)} design(s) did not cleanly PASS every layer:\n")
+        print(f"\n{len(anomalies)} design(s) did not cleanly PASS every stage:\n")
         for d in anomalies:
             failing_stage = next(
                 (name for name, s in d["stages"].items() if s["status"] != "PASS"),
@@ -225,7 +167,9 @@ def print_summary(report):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--corpus", default="designs", help="root directory of the curated corpus")
-    parser.add_argument("--bin-dir", default=None, help="directory containing verilog2hif/hif2verilog/muffin (default: PATH)")
+    parser.add_argument("--tools", default="manifests/tools.yaml")
+    parser.add_argument("--pipelines", default="manifests/pipelines.yaml")
+    parser.add_argument("--bin-dir", default=None, help="directory containing tool binaries (default: PATH)")
     parser.add_argument("--work-dir", default=None, help="scratch directory for intermediate artifacts (default: temp dir under reports/)")
     parser.add_argument("--timeout", type=int, default=DEFAULT_TIMEOUT_S, help="per-stage timeout in seconds")
     parser.add_argument("--only", default=None, help="only run designs whose name contains this substring")
@@ -233,21 +177,22 @@ def main():
     parser.add_argument("--manifest-label", default="unspecified", help="label recorded in the report (e.g. 'develop' or 'stable')")
     args = parser.parse_args()
 
+    tools = load_tools(Path(args.tools).resolve())
+    pipelines = load_pipelines(Path(args.pipelines).resolve())
+
     corpus_root = Path(args.corpus).resolve()
-    designs = discover_designs(corpus_root)
+    designs = discover_designs(corpus_root, pipelines.get("suite_defaults", {}))
     if args.only:
         designs = [d for d in designs if args.only in d.name]
     if not designs:
         raise SystemExit(f"no designs found under {corpus_root} (after --only filter, if any)")
-
-    tools = Tools(args.bin_dir)
 
     work_root = (Path(args.work_dir) if args.work_dir else Path("reports") / ".run" / "internal").resolve()
     if work_root.exists():
         shutil.rmtree(work_root)
     work_root.mkdir(parents=True, exist_ok=True)
 
-    results = [run_design(d, tools, work_root, args.timeout) for d in designs]
+    results = [run_design(d, pipelines, tools, args.bin_dir, work_root, args.timeout) for d in designs]
     report = build_report(results, args.manifest_label)
 
     report_path = Path(args.report)

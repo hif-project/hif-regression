@@ -1,0 +1,39 @@
+# Named, reusable tool chains, built from manifests/tools.yaml. A design
+# selects one by name (sidecar "pipeline" key) or inherits its category's
+# suite_defaults entry - most designs never need to say anything.
+#
+# Each step needs its own id (not just a tool name) because a tool can
+# legitimately appear more than once in one pipeline - verilog2hif already
+# does, as both the initial parse and the final reparse. Step ids double as
+# the stage keys in the JSON report.
+#
+# `probes` run after the full main step sequence succeeds (not interleaved
+# mid-sequence - matches how this repo's Muffin ecosystem check has always
+# worked: list-faults and instrument both examine the frontend's output,
+# neither one feeds into backend regeneration). Each probe attaches to a
+# named step's artifact via `after`, executes in listed order, and a
+# probe failure stops any probes still to come - it does not affect main
+# steps, which have already finished by the time probes run.
+
+pipelines:
+  plain_roundtrip:
+    steps:
+      - {id: frontend, tool: verilog2hif}
+      - {id: backend, tool: hif2verilog}
+      - {id: reparse, tool: verilog2hif}
+
+  muffin_roundtrip:
+    steps:
+      - {id: frontend, tool: verilog2hif}
+      - {id: backend, tool: hif2verilog}
+      - {id: reparse, tool: verilog2hif}
+    probes:
+      - {after: frontend, tool: muffin_list_faults}
+      - {after: frontend, tool: muffin_instrument}
+
+suite_defaults:
+  combinational: plain_roundtrip
+  sequential: plain_roundtrip
+  parameterized: plain_roundtrip
+  hierarchical: plain_roundtrip
+  structural: plain_roundtrip

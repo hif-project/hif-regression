@@ -1,4 +1,4 @@
 {
-    "muffin": true,
+    "pipeline": "muffin_roundtrip",
     "note": "Mirrors hif-muffin's own and2_round_trip product fixture in spirit - this copy exercises the same Verilog -> HIF -> muffin --list-faults -> muffin --instrument -> HIF -> Verilog pipeline as an ecosystem-level check, not a duplicate of Muffin's own CTest."
 }
