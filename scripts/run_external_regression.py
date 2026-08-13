@@ -22,6 +22,12 @@ expectations file at all for its top-level key is simply not compared - the
 run always succeeds and reports results either way. Establishing that
 expectations file from a *reviewed* run is a deliberate, separate step - not
 something this script does automatically.
+
+Two-tier timeout: a file with a known-TIMEOUT baseline runs with
+--probe-timeout (default 60s) instead of the full --timeout (default 300s)
+- just enough to confirm "still stuck" without spending the full budget
+re-proving it every night. Everything else (no baseline, or a PASS/
+CLEAN_REJECT baseline) always gets the full timeout.
 """
 import argparse
 import json
@@ -44,6 +50,13 @@ from toolchain_classify import (  # noqa: E402
 # for the curated corpus's tiny hand-written designs). External real-world
 # files are calibrated separately - see manifests/expectations/README.md.
 EXTERNAL_DEFAULT_TIMEOUT_S = 300
+
+# Files with a known-TIMEOUT baseline get this much shorter timeout instead
+# of the full one - just enough to confirm "still stuck" without re-proving
+# it from scratch every night (see manifests/expectations/README.md's
+# "calibration ceiling vs. nightly operational timeout" policy). If one
+# completes within this window, that is an IMPROVEMENT, not a regression.
+PROBE_TIMEOUT_S = 60
 
 
 def load_manifest(manifest_path: Path):
@@ -85,7 +98,10 @@ def classify_file(source: Path, tools: Tools, work_root: Path, timeout_s: int):
     return {"status": status, "stages": {"frontend": {"status": status, **trim_result(r)}}}
 
 
-def run_suite(top_key: str, suite: dict, checkout_root: Path, tools: Tools, work_root: Path, timeout_s: int, only: str):
+def run_suite(
+    top_key: str, suite: dict, checkout_root: Path, tools: Tools, work_root: Path,
+    timeout_s: int, probe_timeout_s: int, expectations: dict, only: str,
+):
     suite_root = checkout_root / suite["path"]
     if not suite_root.exists():
         raise SystemExit(f"suite path not found after fetch: {suite_root}")
@@ -98,6 +114,7 @@ def run_suite(top_key: str, suite: dict, checkout_root: Path, tools: Tools, work
     excluded_rel_paths = {e["path"]: e["reason"] for e in suite.get("exclude", [])}
 
     suite_key = f"{top_key}/{suite['name']}"
+    suite_expectations = expectations.get(suite_key, {}) if expectations else {}
     suite_work = work_root / top_key / suite["name"]
     results = []
     excluded = []
@@ -106,11 +123,21 @@ def run_suite(top_key: str, suite: dict, checkout_root: Path, tools: Tools, work
         if rel in excluded_rel_paths:
             excluded.append({"file": str(f.relative_to(checkout_root)), "reason": excluded_rel_paths[rel]})
             continue
-        result = classify_file(f, tools, suite_work, timeout_s)
+
+        file_key = str(f.relative_to(checkout_root))
+        expected_entry = suite_expectations.get(file_key)
+        expected_status = expected_entry["stages"]["frontend"]["status"] if expected_entry else None
+        # Only a *known-TIMEOUT* baseline gets the short probe - anything with
+        # no baseline, or a PASS/CLEAN_REJECT baseline, gets the full budget,
+        # so we never mistake "needs 70s" for "stuck" on an unproven file.
+        effective_timeout = probe_timeout_s if expected_status == "TIMEOUT" else timeout_s
+
+        result = classify_file(f, tools, suite_work, effective_timeout)
         results.append({
-            "file": str(f.relative_to(checkout_root)),
+            "file": file_key,
             "status": result["status"],
             "elapsed_s": result["stages"]["frontend"]["elapsed_s"],
+            "timeout_used": effective_timeout,
             "stages": result["stages"],
         })
     return suite_key, results, excluded
@@ -192,7 +219,7 @@ def print_summary(report):
         if anomalies:
             print(f"\n{suite_key}: {len(anomalies)} file(s) CRASH/TIMEOUT:")
             for r in anomalies:
-                print(f"  - {r['file']}: {r['status']} ({r['elapsed_s']}s)")
+                print(f"  - {r['file']}: {r['status']} ({r['elapsed_s']}s, timeout={r['timeout_used']}s)")
         excluded = report["excluded"].get(suite_key, [])
         if excluded:
             print(f"\n{suite_key}: {len(excluded)} file(s) explicitly excluded (not classified, not counted):")
@@ -232,6 +259,7 @@ def main():
     parser.add_argument("--bin-dir", default=None)
     parser.add_argument("--work-dir", default=None)
     parser.add_argument("--timeout", type=int, default=EXTERNAL_DEFAULT_TIMEOUT_S)
+    parser.add_argument("--probe-timeout", type=int, default=PROBE_TIMEOUT_S, help="timeout for files with a known-TIMEOUT baseline")
     parser.add_argument("--suite", default=None, help="only run this top-level manifest key (e.g. 'logikbench')")
     parser.add_argument("--suite-name", default=None, help="only run the suite with this 'name' within the selected top-level key(s) (e.g. 'iscas85')")
     parser.add_argument("--only", default=None, help="only run files whose name contains this substring")
@@ -266,7 +294,8 @@ def main():
             if args.suite_name and suite["name"] != args.suite_name:
                 continue
             suite_key, results, excluded = run_suite(
-                top_key, suite, checkout_root, tools, work_root, args.timeout, args.only
+                top_key, suite, checkout_root, tools, work_root,
+                args.timeout, args.probe_timeout, expectations, args.only,
             )
             per_suite[suite_key] = (results, excluded)
             comparisons_by_suite[suite_key] = compare_to_expectations(suite_key, results, expectations)
