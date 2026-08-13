@@ -69,9 +69,21 @@ source .workspace/toolchain.env
 ctest --test-dir "$WORKSPACE/hif-backend/build" --output-on-failure
 ```
 
-The curated corpus and external benchmarks run through
-`scripts/run_regression.py` (see below); `scripts/report.py` turns its JSON
-output into the human-readable summary.
+The curated corpus runs through `scripts/run_regression.py` (external
+benchmarks join it in the same way once wired up), e.g.:
+
+```sh
+export PATH="$PREFIX/bin:$PATH"
+export LD_LIBRARY_PATH="$PREFIX/lib:${LD_LIBRARY_PATH:-}"
+python3 scripts/run_regression.py --manifest-label develop
+```
+
+It prints a human-readable summary (per-category PASS/CLEAN_REJECT/CRASH/
+TIMEOUT counts, plus a list of any design that didn't cleanly PASS every
+layer) and writes the full machine-readable detail to
+`reports/curated-report.json` (gitignored). A standalone `scripts/report.py`
+for combining multiple corpora into one CI job summary will show up once the
+nightly workflow actually needs it - not before.
 
 ## Curated design corpus
 
