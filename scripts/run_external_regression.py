@@ -14,10 +14,14 @@ issues.md investigated frontend robustness against real-world files, not
 full backend round-trips of arbitrary external designs - that is a much
 larger, separately-scoped question).
 
-This script is observation-only: it has no notion of a baseline and never
-fails the process based on classification counts. Establishing
-manifests/expectations/<suite>.json from a *reviewed* run is a deliberate,
-separate step - not something this script does on its own.
+Once manifests/expectations/<top-level-key>.json exists for a suite, this
+script also compares each file's result against it (see toolchain_classify's
+STATUS_SEVERITY for the PASS < CLEAN_REJECT < TIMEOUT < CRASH ordering) and
+reports REGRESSION / IMPROVEMENT / MATCH / NEW per file. A file with no
+expectations file at all for its top-level key is simply not compared - the
+run always succeeds and reports results either way. Establishing that
+expectations file from a *reviewed* run is a deliberate, separate step - not
+something this script does automatically.
 """
 import argparse
 import json
@@ -29,13 +33,17 @@ import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from toolchain_classify import (  # noqa: E402
-    DEFAULT_TIMEOUT_S,
     STATUS_SEVERITY,
     Tools,
     classify,
     run_tool,
     trim_result,
 )
+
+# Deliberately separate from toolchain_classify.DEFAULT_TIMEOUT_S (60s, tuned
+# for the curated corpus's tiny hand-written designs). External real-world
+# files are calibrated separately - see manifests/expectations/README.md.
+EXTERNAL_DEFAULT_TIMEOUT_S = 300
 
 
 def load_manifest(manifest_path: Path):
@@ -81,36 +89,79 @@ def run_suite(top_key: str, suite: dict, checkout_root: Path, tools: Tools, work
     suite_root = checkout_root / suite["path"]
     if not suite_root.exists():
         raise SystemExit(f"suite path not found after fetch: {suite_root}")
-    files = sorted(suite_root.rglob("*.v"))
+
+    file_glob = suite.get("file_glob", "**/*.v")
+    files = sorted(suite_root.glob(file_glob))
     if only:
         files = [f for f in files if only in f.name]
+
+    excluded_rel_paths = {e["path"]: e["reason"] for e in suite.get("exclude", [])}
 
     suite_key = f"{top_key}/{suite['name']}"
     suite_work = work_root / top_key / suite["name"]
     results = []
+    excluded = []
     for f in files:
+        rel = str(f.relative_to(suite_root))
+        if rel in excluded_rel_paths:
+            excluded.append({"file": str(f.relative_to(checkout_root)), "reason": excluded_rel_paths[rel]})
+            continue
         result = classify_file(f, tools, suite_work, timeout_s)
         results.append({
             "file": str(f.relative_to(checkout_root)),
             "status": result["status"],
+            "elapsed_s": result["stages"]["frontend"]["elapsed_s"],
             "stages": result["stages"],
         })
-    return suite_key, results
+    return suite_key, results, excluded
 
 
-def build_report(per_suite, manifest_data):
+def load_expectations(expectations_dir: Path, top_key: str):
+    path = expectations_dir / f"{top_key}.json"
+    if not path.exists():
+        return None
+    return json.loads(path.read_text())
+
+
+def compare_to_expectations(suite_key: str, results: list, expectations: dict):
+    """Compare each file's frontend-stage status against its expectation, if
+    any. Returns a list of {file, status, expected, verdict} - verdict is one
+    of MATCH, REGRESSION, IMPROVEMENT, NEW (no expectation entry at all)."""
+    suite_expectations = expectations.get(suite_key, {}) if expectations else {}
+    comparisons = []
+    for r in results:
+        expected_entry = suite_expectations.get(r["file"])
+        if expected_entry is None:
+            comparisons.append({"file": r["file"], "status": r["status"], "expected": None, "verdict": "NEW"})
+            continue
+        expected_status = expected_entry["stages"]["frontend"]["status"]
+        if r["status"] == expected_status:
+            verdict = "MATCH"
+        elif STATUS_SEVERITY[r["status"]] > STATUS_SEVERITY[expected_status]:
+            verdict = "REGRESSION"
+        else:
+            verdict = "IMPROVEMENT"
+        comparisons.append({"file": r["file"], "status": r["status"], "expected": expected_status, "verdict": verdict})
+    return comparisons
+
+
+def build_report(per_suite, comparisons_by_suite):
     summary = {}
     suites_out = {}
-    for suite_key, results in per_suite.items():
+    excluded_out = {}
+    for suite_key, (results, excluded) in per_suite.items():
         counts = {"PASS": 0, "CLEAN_REJECT": 0, "CRASH": 0, "TIMEOUT": 0}
         for r in results:
             counts[r["status"]] += 1
         summary[suite_key] = counts
         suites_out[suite_key] = results
+        excluded_out[suite_key] = excluded
     return {
         "corpus": "external",
         "summary": summary,
         "suites": suites_out,
+        "excluded": excluded_out,
+        "comparisons": comparisons_by_suite,
     }
 
 
@@ -141,11 +192,36 @@ def print_summary(report):
         if anomalies:
             print(f"\n{suite_key}: {len(anomalies)} file(s) CRASH/TIMEOUT:")
             for r in anomalies:
-                print(f"  - {r['file']}: {r['status']}")
-    print(
-        "\nThis is an observation-only run - no baseline exists yet. Review "
-        "these results before deciding what belongs in manifests/expectations/."
-    )
+                print(f"  - {r['file']}: {r['status']} ({r['elapsed_s']}s)")
+        excluded = report["excluded"].get(suite_key, [])
+        if excluded:
+            print(f"\n{suite_key}: {len(excluded)} file(s) explicitly excluded (not classified, not counted):")
+            for e in excluded:
+                print(f"  - {e['file']}: {e['reason']}")
+
+    any_expectations = any(report["comparisons"].values())
+    if any_expectations:
+        print("\n== comparison against manifests/expectations/ ==")
+        for suite_key in sorted(report["comparisons"]):
+            comparisons = report["comparisons"][suite_key]
+            if not comparisons:
+                continue
+            regressions = [c for c in comparisons if c["verdict"] == "REGRESSION"]
+            improvements = [c for c in comparisons if c["verdict"] == "IMPROVEMENT"]
+            new = [c for c in comparisons if c["verdict"] == "NEW"]
+            match_count = len(comparisons) - len(regressions) - len(improvements) - len(new)
+            print(f"\n{suite_key}: {match_count} match, {len(improvements)} improvement(s), {len(regressions)} regression(s), {len(new)} new (no baseline)")
+            for c in regressions:
+                print(f"  REGRESSION  {c['file']}: expected {c['expected']}, got {c['status']}")
+            for c in improvements:
+                print(f"  IMPROVEMENT {c['file']}: expected {c['expected']}, got {c['status']}")
+            for c in new:
+                print(f"  NEW         {c['file']}: {c['status']} (no baseline entry)")
+    else:
+        print(
+            "\nNo manifests/expectations/ file for any selected suite - "
+            "observation-only, nothing to compare against yet."
+        )
     print()
 
 
@@ -155,10 +231,12 @@ def main():
     parser.add_argument("--cache-dir", default="external/.cache")
     parser.add_argument("--bin-dir", default=None)
     parser.add_argument("--work-dir", default=None)
-    parser.add_argument("--timeout", type=int, default=DEFAULT_TIMEOUT_S)
+    parser.add_argument("--timeout", type=int, default=EXTERNAL_DEFAULT_TIMEOUT_S)
     parser.add_argument("--suite", default=None, help="only run this top-level manifest key (e.g. 'logikbench')")
+    parser.add_argument("--suite-name", default=None, help="only run the suite with this 'name' within the selected top-level key(s) (e.g. 'iscas85')")
     parser.add_argument("--only", default=None, help="only run files whose name contains this substring")
     parser.add_argument("--report", default="reports/external-report.json")
+    parser.add_argument("--expectations-dir", default="manifests/expectations")
     args = parser.parse_args()
 
     manifest_path = Path(args.manifest).resolve()
@@ -173,27 +251,43 @@ def main():
         subprocess.run(["rm", "-rf", str(work_root)], check=True)
     work_root.mkdir(parents=True, exist_ok=True)
 
+    expectations_dir = Path(args.expectations_dir).resolve()
+
     per_suite = {}
+    comparisons_by_suite = {}
     for top_key, entry in manifest.items():
         if args.suite and top_key != args.suite:
             continue
         checkout_root = cache_root / top_key
         print(f"-- fetching {top_key} @ {entry['ref']}")
         fetch_ref(entry["repository"], entry["ref"], checkout_root)
+        expectations = load_expectations(expectations_dir, top_key)
         for suite in entry["suites"]:
-            suite_key, results = run_suite(
+            if args.suite_name and suite["name"] != args.suite_name:
+                continue
+            suite_key, results, excluded = run_suite(
                 top_key, suite, checkout_root, tools, work_root, args.timeout, args.only
             )
-            per_suite[suite_key] = results
-            print(f"   {suite_key}: {len(results)} file(s) classified")
+            per_suite[suite_key] = (results, excluded)
+            comparisons_by_suite[suite_key] = compare_to_expectations(suite_key, results, expectations)
+            print(f"   {suite_key}: {len(results)} file(s) classified, {len(excluded)} excluded")
 
-    report = build_report(per_suite, manifest)
+    report = build_report(per_suite, comparisons_by_suite)
     report_path = Path(args.report)
     report_path.parent.mkdir(parents=True, exist_ok=True)
     report_path.write_text(json.dumps(report, indent=2))
 
     print_summary(report)
     print(f"JSON report: {report_path}")
+
+    regressions = [
+        c for comparisons in report["comparisons"].values() for c in comparisons if c["verdict"] == "REGRESSION"
+    ]
+    new_crashes = [
+        c for comparisons in report["comparisons"].values()
+        for c in comparisons if c["verdict"] == "NEW" and c["status"] == "CRASH"
+    ]
+    sys.exit(1 if (regressions or new_crashes) else 0)
 
 
 if __name__ == "__main__":

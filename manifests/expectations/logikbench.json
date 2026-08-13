@@ -1,0 +1,41 @@
+{
+  "logikbench/basic": {
+    "logikbench/benchmarks/basic/arbiter/rtl/arbiter.v": {"stages": {"frontend": {"status": "PASS"}}},
+    "logikbench/benchmarks/basic/band/rtl/band.v": {"stages": {"frontend": {"status": "PASS"}}},
+    "logikbench/benchmarks/basic/bin2gray/rtl/bin2gray.v": {"stages": {"frontend": {"status": "PASS"}}},
+    "logikbench/benchmarks/basic/bin2prio/rtl/bin2prio.v": {"stages": {"frontend": {"status": "PASS"}}},
+    "logikbench/benchmarks/basic/binv/rtl/binv.v": {"stages": {"frontend": {"status": "PASS"}}},
+    "logikbench/benchmarks/basic/bnand/rtl/bnand.v": {"stages": {"frontend": {"status": "PASS"}}},
+    "logikbench/benchmarks/basic/bnor/rtl/bnor.v": {"stages": {"frontend": {"status": "PASS"}}},
+    "logikbench/benchmarks/basic/bor/rtl/bor.v": {"stages": {"frontend": {"status": "PASS"}}},
+    "logikbench/benchmarks/basic/bxnor/rtl/bxnor.v": {"stages": {"frontend": {"status": "PASS"}}},
+    "logikbench/benchmarks/basic/bxor/rtl/bxor.v": {"stages": {"frontend": {"status": "PASS"}}},
+    "logikbench/benchmarks/basic/crossbar/rtl/crossbar.v": {"stages": {"frontend": {"status": "PASS"}}},
+    "logikbench/benchmarks/basic/dffasync/rtl/dffasync.v": {"stages": {"frontend": {"status": "PASS"}}},
+    "logikbench/benchmarks/basic/dffsync/rtl/dffsync.v": {"stages": {"frontend": {"status": "PASS"}}},
+    "logikbench/benchmarks/basic/fsm/rtl/fsm.v": {"stages": {"frontend": {"status": "PASS"}}},
+    "logikbench/benchmarks/basic/gray2bin/rtl/gray2bin.v": {"stages": {"frontend": {"status": "PASS"}}},
+    "logikbench/benchmarks/basic/mux/rtl/mux.v": {"stages": {"frontend": {"status": "PASS"}}},
+    "logikbench/benchmarks/basic/muxcase/rtl/muxcase.v": {"stages": {"frontend": {"status": "PASS"}}},
+    "logikbench/benchmarks/basic/muxhot/rtl/muxhot.v": {"stages": {"frontend": {"status": "PASS"}}},
+    "logikbench/benchmarks/basic/muxpri/rtl/muxpri.v": {"stages": {"frontend": {"status": "PASS"}}},
+    "logikbench/benchmarks/basic/onehot/rtl/onehot.v": {"stages": {"frontend": {"status": "PASS"}}},
+    "logikbench/benchmarks/basic/pipeline/rtl/pipeline.v": {"stages": {"frontend": {"status": "PASS"}}},
+    "logikbench/benchmarks/basic/shiftreg/rtl/shiftreg.v": {"stages": {"frontend": {"status": "PASS"}}},
+    "logikbench/benchmarks/basic/tff/rtl/tff.v": {"stages": {"frontend": {"status": "PASS"}}},
+    "logikbench/benchmarks/basic/tmr/rtl/tmr.v": {"stages": {"frontend": {"status": "PASS"}}}
+  },
+  "logikbench/iscas85": {
+    "logikbench/benchmarks/iscas85/c17/rtl/c17.v": {"stages": {"frontend": {"status": "PASS", "reference_elapsed_s": 0.05}}},
+    "logikbench/benchmarks/iscas85/c432/rtl/c432.v": {"stages": {"frontend": {"status": "PASS", "reference_elapsed_s": 0.4}}},
+    "logikbench/benchmarks/iscas85/c499/rtl/c499.v": {"stages": {"frontend": {"status": "PASS", "reference_elapsed_s": 3.6}}},
+    "logikbench/benchmarks/iscas85/c880/rtl/c880.v": {"stages": {"frontend": {"status": "PASS", "reference_elapsed_s": 2.5}}},
+    "logikbench/benchmarks/iscas85/c1355/rtl/c1355.v": {"stages": {"frontend": {"status": "PASS", "reference_elapsed_s": 20.7}}},
+    "logikbench/benchmarks/iscas85/c2670/rtl/c2670.v": {"stages": {"frontend": {"status": "PASS", "reference_elapsed_s": 10.3}}},
+    "logikbench/benchmarks/iscas85/c1908/rtl/c1908.v": {"stages": {"frontend": {"status": "PASS", "reference_elapsed_s": 56.7}}},
+    "logikbench/benchmarks/iscas85/c3540/rtl/c3540.v": {"stages": {"frontend": {"status": "PASS", "reference_elapsed_s": 61.0}}},
+    "logikbench/benchmarks/iscas85/c5315/rtl/c5315.v": {"stages": {"frontend": {"status": "PASS", "reference_elapsed_s": 78.2}}},
+    "logikbench/benchmarks/iscas85/c6288/rtl/c6288.v": {"stages": {"frontend": {"status": "TIMEOUT"}}},
+    "logikbench/benchmarks/iscas85/c7552/rtl/c7552.v": {"stages": {"frontend": {"status": "PASS", "reference_elapsed_s": 266.4, "note": "Originally calibrated as TIMEOUT, but that calibration ran concurrently with the epfl suite (the same CPU-contention issue documented for arithmetic/adder.v in the README) and c7552 sits right at the 300s edge. An isolated, non-concurrent run completed it within the cap - corrected to PASS from that run, not from the contaminated calibration."}}}
+  }
+}
