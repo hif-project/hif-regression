@@ -1,0 +1,67 @@
+name: Nightly
+
+# Floating-develop ecosystem health check - the modern equivalent of the old
+# internal machine that pulled all HIF develop branches and ran the full
+# regression suite. All actual logic (build graph, classification,
+# comparison, reporting) lives in scripts/ and manifests/ - this file only
+# sequences steps and wires their output to GitHub's UI.
+
+on:
+  schedule:
+    - cron: "0 3 * * *"
+  workflow_dispatch: {}
+
+jobs:
+  regression:
+    name: Floating-develop regression
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y g++ libpoco-dev flex bison
+
+      - name: Install Python dependencies
+        run: pip install pyyaml
+
+      - name: Build toolchain (floating develop)
+        id: build
+        run: python3 scripts/build_toolchain.py --manifest develop --build-type Release --parallel 2
+
+      - name: Per-repo CTest
+        if: steps.build.outcome == 'success'
+        run: |
+          source .workspace/toolchain.env
+          export PATH="$PREFIX/bin:$PATH"
+          export LD_LIBRARY_PATH="$PREFIX/lib:${LD_LIBRARY_PATH:-}"
+          python3 scripts/run_ctest_suites.py --workspace "$WORKSPACE"
+
+      - name: Curated corpus regression
+        if: steps.build.outcome == 'success'
+        run: |
+          source .workspace/toolchain.env
+          export PATH="$PREFIX/bin:$PATH"
+          export LD_LIBRARY_PATH="$PREFIX/lib:${LD_LIBRARY_PATH:-}"
+          python3 scripts/run_regression.py --manifest-label develop
+
+      - name: External benchmark regression
+        if: steps.build.outcome == 'success'
+        run: |
+          source .workspace/toolchain.env
+          export PATH="$PREFIX/bin:$PATH"
+          export LD_LIBRARY_PATH="$PREFIX/lib:${LD_LIBRARY_PATH:-}"
+          python3 scripts/run_external_regression.py
+
+      - name: Publish job summary
+        if: always()
+        run: python3 scripts/report.py >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload detailed reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: regression-reports-${{ github.run_id }}
+          path: reports/*.json
+          if-no-files-found: warn

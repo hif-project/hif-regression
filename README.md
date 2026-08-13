@@ -74,8 +74,9 @@ source .workspace/toolchain.env
 ctest --test-dir "$WORKSPACE/hif-backend/build" --output-on-failure
 ```
 
-The curated corpus runs through `scripts/run_regression.py` (external
-benchmarks join it in the same way once wired up), e.g.:
+The curated corpus runs through `scripts/run_regression.py`; external
+benchmarks run through `scripts/run_external_regression.py` (see below) -
+both write their own JSON report under `reports/` (gitignored):
 
 ```sh
 export PATH="$PREFIX/bin:$PATH"
@@ -85,10 +86,14 @@ python3 scripts/run_regression.py --manifest-label develop
 
 It prints a human-readable summary (per-category PASS/CLEAN_REJECT/CRASH/
 TIMEOUT counts, plus a list of any design that didn't cleanly PASS every
-layer) and writes the full machine-readable detail to
-`reports/curated-report.json` (gitignored). A standalone `scripts/report.py`
-for combining multiple corpora into one CI job summary will show up once the
-nightly workflow actually needs it - not before.
+stage) and writes the full machine-readable detail to
+`reports/curated-report.json`. `scripts/report.py` renders both reports as
+one Markdown summary (what the nightly publishes to the GitHub Actions job
+summary):
+
+```sh
+python3 scripts/report.py   # reads reports/curated-report.json + reports/external-report.json
+```
 
 ## Curated design corpus
 
@@ -134,7 +139,11 @@ Only the frontend layer (`verilog2hif`) is exercised for external files today
 against. Results are classified per file as `PASS`, `CLEAN_REJECT`, `CRASH`, or
 `TIMEOUT`. `manifests/expectations/` holds the checked-in baseline once one
 exists for a suite (see that directory's README for the exact regression /
-improvement policy) - the primary rule is **zero unexpected crashes**.
+improvement policy) - the primary rule is **zero unexpected crashes**. A file
+with a known-`TIMEOUT` baseline runs with a much shorter `--probe-timeout`
+(60s by default) instead of the full `--timeout` (300s) - enough to confirm
+"still stuck" without spending the full budget every night; if one completes
+within that window, it is reported as an improvement, not a regression.
 
 Current suites: `logikbench` (`basic`, `iscas85`) and `epfl` /
 `lsils/benchmarks` (`arithmetic`, `random_control`). See
@@ -144,11 +153,11 @@ notes - these corpora are not uniformly licensed, don't assume otherwise.
 ## Adding a future HIF tool to the integration graph
 
 1. Add it to `manifests/repositories.yaml` (repository URL, `depends_on`,
-   `cmake_args_template`) - build order is derived automatically.
+   `cmake_args_template`) - build order is derived automatically, and so is
+   its CTest run (`scripts/run_ctest_suites.py` reads the same file) - no
+   workflow change needed for either.
 2. Add its ref to both `manifests/stable.yaml` and `manifests/develop.yaml`.
-3. If it has its own CTest suite, add a step to run it in
-   `.github/workflows/nightly.yml`.
-4. If it's relevant to the curated corpus, add its executable(s) to
+3. If it's relevant to the curated corpus, add its executable(s) to
    `manifests/tools.yaml` and reference them from a pipeline in
    `manifests/pipelines.yaml` (a new named pipeline, or a probe on an
    existing one) rather than inventing a parallel corpus or touching
