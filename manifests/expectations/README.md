@@ -40,22 +40,28 @@ isolated, non-concurrent run at a 300-second timeout ceiling, on top of:
 300 seconds is the ceiling used to *establish* this baseline (to tell
 "genuinely slow" apart from "shows no evidence of ever finishing" - see the
 per-file `reference_elapsed_s` values above; the worst genuine finisher was
-`arithmetic/adder.v` at ~244s). It is not, by itself, meant to be what the
-nightly spends per file forever - today the runner still uses one timeout
-for every file, which means it currently *does* wait the full 300s on each
-known-`TIMEOUT` file. That is correct but wasteful: ~70 of the ~79 minutes
-the external suites currently cost is spent re-confirming 14 files we
-already know don't finish.
+`arithmetic/adder.v` at ~244s).
 
-Intended future policy (not yet implemented - tracked for the pipeline
-refactor, not built ad hoc into today's runner):
+**Implemented** (`run_external_regression.py`'s `--probe-timeout`, default
+60s): a file with a known-`TIMEOUT` baseline runs with that short probe
+instead of the full 300s - just enough to confirm "still stuck" without
+re-proving it from scratch every night. Everything else (no baseline, or a
+`PASS`/`CLEAN_REJECT` baseline) always gets the full timeout. If a
+known-`TIMEOUT` file completes within the probe, that is an **improvement**
+(reported, doesn't fail the nightly) - the general improvement policy above
+covers this, the probe timeout just makes checking for it cheap. Confirmed
+working on the first real `workflow_dispatch` run: all 13 files with a
+`TIMEOUT` baseline correctly used the 60s probe and matched.
 
-- Files with no baseline, or a `PASS` baseline, run with the full regression
-  timeout (300s today).
-- Files with a known `TIMEOUT` baseline run with a much shorter probe
-  timeout instead (~30-60s) - just enough to confirm "still stuck", not to
-  re-prove it from scratch every night.
-- If a known-`TIMEOUT` file completes within that shorter probe, that is an
-  **improvement** (report it, don't fail the nightly), not a regression -
-  the general improvement policy above already covers this, the probe
-  timeout is just what makes checking for it cheap.
+### Lesson from the first real run: calibrate against CI, not your laptop
+
+`c7552.v` was briefly promoted to a `PASS` baseline (266.4s) from an
+isolated *local* run. On the actual GitHub Actions runner (run
+`31739473048`) it exceeded 300s and failed the job as a false regression -
+reverted back to `TIMEOUT`. The asymmetry matters: a `TIMEOUT` baseline that
+occasionally finishes early is a harmless improvement; a `PASS` baseline
+that occasionally overshoots is a job-failing false regression on every
+slow run. For any file within shouting distance of the timeout ceiling
+(currently only `c7552.v`, ~266-300s), don't promote it to `PASS` from a
+single local measurement - wait for a stable pattern of passing CI runs
+first, since CI runner performance doesn't necessarily match local hardware.
