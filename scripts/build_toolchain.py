@@ -120,7 +120,7 @@ def main():
     check_required_tools()
 
     build_order = topological_order(repositories)
-    github_org = os.environ.get("HIF_REGRESSION_GITHUB_ORG", "esd-univr")
+    github_org = os.environ.get("HIF_REGRESSION_GITHUB_ORG", "hif-project")
 
     workspace = Path(args.workspace).resolve()
     prefix = workspace / "install"
