@@ -15,6 +15,15 @@
 # fully predictable (e.g. hif2verilog names output after the surviving
 # DesignUnit, not always {name}) - the runner requires it to resolve to
 # exactly one file; zero or multiple matches is a hard error, not a guess.
+#
+# The artifact must exist AND be non-empty. Exiting 0 is not evidence that a
+# tool produced anything: it can fail after creating its output file and
+# leave it at zero bytes (hif2verilog did exactly this - hif-backend#23).
+# An empty .v is valid Verilog that reparses cleanly, so without this check
+# a later "did it reparse?" step reports PASS on a design that was lost.
+# Every artifact declared here is a file, and none of them is meaningfully
+# empty, so the rule applies uniformly - see check_artifact in
+# scripts/pipeline_engine.py.
 
 verilog2hif:
   repository: hif-frontend
