@@ -1,0 +1,39 @@
+# s1 is the sum output of the first half adder, and the input the second half
+# adder builds `sum` from. It is the node that made this design the hierarchy
+# fixture: it originates in a child module, and every top-level output depends
+# on it.
+#
+# Forcing s1 high leaves the adder correct on half the truth table:
+#   sum  = 1 ^ cin
+#   cout = (a & b) | cin
+# which agrees with the fault-free adder wherever a ^ b happens to be 1 - the
+# four vectors where exactly one of a, b is set - and differs on the other
+# four. Four differing vectors out of eight, on the output reached through the
+# child module, is exactly the path hif-backend#16 got wrong.
+#
+# The expected trace was derived from the fault's semantics (a full adder
+# written with s1 tied high, simulated independently), not captured from a
+# Muffin run - so it is an oracle rather than a snapshot of current behavior.
+
+runs:
+  - {id: golden, params: {mut: 0}}
+
+  - id: sa1_s1
+    params:
+      mut: {from: enumerate, array: faults, where: {signal: s1, bit: 0, type: stuck-at-1}, take: id}
+
+expectations:
+  - id: golden_matches_rtl
+    use: trace_equal
+    left:  {from: simulate_reference,    run: reference}
+    right: {from: simulate_instrumented, run: golden}
+
+  - id: sa1_s1_expected_trace
+    use: expected_trace
+    left:     {from: simulate_instrumented, run: sa1_s1}
+    expected: {fixture: expect_sa1_s1}
+
+  - id: sa1_s1_detected
+    use: trace_differs
+    left:  {from: simulate_instrumented, run: sa1_s1}
+    right: {from: simulate_reference,    run: reference}
