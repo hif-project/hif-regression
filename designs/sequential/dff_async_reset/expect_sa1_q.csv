@@ -1,0 +1,8 @@
+phase,rst_n,d,q
+after_load,1,1,1
+rst_asserted_idle,0,1,1
+rst_released_idle,1,1,1
+after_reload,1,1,1
+after_capture_0,1,0,1
+rst_again_idle,0,1,1
+final,1,1,1

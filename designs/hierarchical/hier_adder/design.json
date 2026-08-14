@@ -1,4 +1,10 @@
 {
     "top": "hier_adder",
-    "sources": ["hier_adder.v", "half_adder.v"]
+    "pipeline": "muffin_behavioral",
+    "sources": ["hier_adder.v", "half_adder.v"],
+    "fixtures": {
+        "testbench": "hier_adder_tb.v",
+        "expect_sa1_s1": "expect_sa1_s1.csv"
+    },
+    "note": "The behavioral hierarchy fixture: logic that originates in a child module and reaches the top-level outputs through an intermediate node. Golden equivalence here is what caught hif-backend#16, where the regenerated Verilog read that intermediate node stale."
 }
