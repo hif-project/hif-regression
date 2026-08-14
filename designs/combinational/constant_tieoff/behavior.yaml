@@ -1,0 +1,17 @@
+# One claim: the regenerated design drives its outputs the way its source does.
+#
+# The failure this guards against is an output with no driver at all, which
+# reads x. That makes the comparison against the reference run the whole test:
+# a dropped tie-off shows up as x on one side and a value on the other.
+#
+# `gated` is deliberately not a constant, so the reference trace moves under
+# the stimulus. Without it every column would be constant and a trace could
+# compare equal to itself while proving very little.
+
+runs: []
+
+expectations:
+  - id: regenerated_matches_rtl
+    use: trace_equal
+    left:  {from: simulate_reference,   run: reference}
+    right: {from: simulate_regenerated, run: regenerated}
