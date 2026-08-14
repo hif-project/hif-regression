@@ -1,0 +1,52 @@
+# Each output is assigned exactly once, so {signal, bit, type} is unambiguous.
+#
+# This design carries the detected/undetected pair. Both faults below are valid
+# injected faults; the difference is entirely in the stimulus, which never
+# drives a == b.
+
+runs:
+  - {id: golden, params: {mut: 0}}
+
+  - id: sa0_gt
+    params:
+      mut: {from: enumerate, array: faults, where: {signal: gt, bit: 0, type: stuck-at-0}, take: id}
+
+  - id: sa1_eq
+    params:
+      mut: {from: enumerate, array: faults, where: {signal: eq, bit: 0, type: stuck-at-1}, take: id}
+
+  - id: sa0_eq
+    params:
+      mut: {from: enumerate, array: faults, where: {signal: eq, bit: 0, type: stuck-at-0}, take: id}
+
+expectations:
+  - id: golden_matches_rtl
+    use: trace_equal
+    left:  {from: simulate_reference,    run: reference}
+    right: {from: simulate_instrumented, run: golden}
+
+  # gt stuck at 0 hides the two vectors where a > b.
+  - id: sa0_gt_expected_trace
+    use: expected_trace
+    left:     {from: simulate_instrumented, run: sa0_gt}
+    expected: {fixture: expect_sa0_gt}
+
+  # eq stuck at 1 asserts equality on every vector, none of which is equal.
+  - id: sa1_eq_expected_trace
+    use: expected_trace
+    left:     {from: simulate_instrumented, run: sa1_eq}
+    expected: {fixture: expect_sa1_eq}
+
+  - id: sa0_gt_detected
+    use: trace_differs
+    left:  {from: simulate_instrumented, run: sa0_gt}
+    right: {from: simulate_reference,    run: reference}
+
+  # UNDETECTED, and expected to be. eq is already 0 on every vector because no
+  # stimulus pair is equal, so forcing it to 0 changes nothing observable. This
+  # is a real property of fault simulation, asserted positively rather than
+  # treated as a tolerated failure.
+  - id: sa0_eq_undetected
+    use: trace_equal
+    left:  {from: simulate_instrumented, run: sa0_eq}
+    right: {from: simulate_reference,    run: reference}

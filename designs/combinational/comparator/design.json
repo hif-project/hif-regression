@@ -1,0 +1,11 @@
+{
+    "top": "comparator",
+    "pipeline": "muffin_behavioral",
+    "sources": ["comparator.v"],
+    "fixtures": {
+        "testbench": "comparator_tb.v",
+        "expect_sa0_gt": "expect_sa0_gt.csv",
+        "expect_sa1_eq": "expect_sa1_eq.csv"
+    },
+    "note": "Carries the deliberate undetected case: no stimulus vector has a == b, so eq stuck-at-0 is a valid injected fault that this stimulus cannot observe. That is an expected property of fault simulation, stated explicitly rather than tolerated."
+}
