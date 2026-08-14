@@ -3,7 +3,7 @@
 //
 // The fixed amount is written as a sized constant. An unsized `d << 2` widens
 // the expression to 32 bits and currently regenerates as unparsable Verilog -
-// see docs/findings/2026-08-14-backend-codegen.md (finding 2).
+// see https://github.com/hif-project/hif-backend/issues/18.
 module shifter(input [7:0] d, input [2:0] amount, output [7:0] left, output [7:0] right, output [7:0] fixed);
   assign left  = d << amount;
   assign right = d >> amount;

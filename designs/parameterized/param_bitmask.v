@@ -3,7 +3,7 @@
 // This fixture originally used $clog2 to derive an address width. It does not,
 // because $clog2 does not currently survive a round trip: hif2verilog emits it
 // as a system function call that verilog2hif cannot resolve on reparse - see
-// docs/findings/2026-08-14-backend-codegen.md (finding 4). Adding a construct
+// https://github.com/hif-project/hif-backend/issues/19. Adding a construct
 // the toolchain cannot round-trip would only inflate the corpus.
 module param_bitmask #(parameter WIDTH = 8) (
     input [WIDTH-1:0] d,

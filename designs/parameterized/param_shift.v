@@ -3,7 +3,7 @@
 // The stages are separate registers rather than slices of one wide register.
 // A parameterized part-select such as chain[WIDTH*DEPTH-1:WIDTH*(DEPTH-1)]
 // currently regenerates as malformed Verilog - see
-// docs/findings/2026-08-14-backend-codegen.md (finding 3).
+// https://github.com/hif-project/hif-backend/issues/18.
 module param_shift #(parameter WIDTH = 4) (
     input clk,
     input rst,

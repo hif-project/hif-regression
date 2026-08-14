@@ -3,7 +3,8 @@
 # For a signal whose span is a parameter expression, Muffin enumerates a single
 # bit rather than WIDTH bits, and the 1-bit injection path then replaces the
 # whole register with a literal instead of forcing one bit of it. That looks
-# wrong, and it is reported upstream rather than encoded here.
+# wrong, and it is reported upstream rather than encoded here:
+# https://github.com/hif-project/hif-muffin/issues/9
 #
 # So this fixture asserts only what is true regardless of that question:
 #   - inactive instrumentation must reproduce the original RTL exactly;
