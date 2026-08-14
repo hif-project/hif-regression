@@ -1,0 +1,11 @@
+{
+    "top": "and2",
+    "pipeline": "muffin_behavioral",
+    "sources": ["and2.v"],
+    "fixtures": {
+        "testbench": "and2_tb.v",
+        "expect_sa0_y": "expect_sa0_y.csv",
+        "expect_sa1_y": "expect_sa1_y.csv"
+    },
+    "note": "Ecosystem-level behavioral check: golden instrumentation must reproduce the original RTL exactly, and SA0/SA1 on y must change it in exactly the predicted way. Also carries the canonical detected/undetected pair - SA1 is invisible at the one vector where SA0 shows."
+}

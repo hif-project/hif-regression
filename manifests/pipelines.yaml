@@ -41,6 +41,37 @@ pipelines:
       - {id: muffin_list_faults, kind: tool, use: muffin_list_faults, inputs: [frontend]}
       - {id: muffin_instrument,  kind: tool, use: muffin_instrument,  inputs: [frontend]}
 
+  # Behavioral acceptance: prove by simulation that instrumentation preserves
+  # behavior when inactive, and changes it exactly as predicted when a fault is
+  # selected. Structural coverage comes along for free - the first four
+  # operations are the same transformation chain the other pipelines run.
+  muffin_behavioral:
+    operations:
+      - {id: frontend,   kind: tool, use: verilog2hif}
+      - {id: enumerate,  kind: tool, use: muffin_list_faults, inputs: [frontend]}
+      - {id: instrument, kind: tool, use: muffin_instrument,  inputs: [frontend]}
+      - {id: regenerate, kind: tool, use: hif2verilog,        inputs: [instrument]}
+
+      # Reference: the original hand-written RTL, untouched by any HIF tool.
+      - id: simulate_reference
+        kind: simulation
+        use: iverilog
+        sources: [{design: sources}, {fixture: testbench}]
+        top: "{name}_tb"
+        runs: [{id: reference}]
+
+      # One compile of the instrumented netlist; every fault selection is
+      # another run of it, never a recompile.
+      - id: simulate_instrumented
+        kind: simulation
+        use: iverilog
+        sources: [{from: regenerate}, {fixture: testbench}]
+        top: "{name}_tb"
+        defines: [MUFFIN_MUT]
+        runs: {from_spec: runs}
+
+      - {id: validate, kind: validation, cases: {from_spec: expectations}}
+
 suite_defaults:
   combinational: plain_roundtrip
   sequential: plain_roundtrip

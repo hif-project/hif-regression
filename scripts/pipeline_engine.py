@@ -124,6 +124,29 @@ def resolve_inputs(op, artifacts, previous_id, sources, pipeline_name):
     return resolved
 
 
+def _from_spec(value, design, kind, op_id):
+    """`runs`/`cases` are either a literal list or {from_spec: <key>}, which
+    reads the list from the design's behavior.yaml. This is what lets one
+    shared pipeline serve many designs whose fault cases differ. The engine
+    performs a list lookup and attaches no meaning to the contents."""
+    if isinstance(value, list):
+        return value
+    if isinstance(value, dict) and "from_spec" in value:
+        key = value["from_spec"]
+        if design is None:
+            raise ManifestError(
+                f"operation '{op_id}': '{kind}: {{from_spec: {key}}}' requires a "
+                f"design with a behavior.yaml")
+        entries = design.behavior.get(key)
+        if entries is None:
+            raise ManifestError(
+                f"operation '{op_id}': design '{design.category}/{design.name}' "
+                f"behavior.yaml has no '{key}' list (has: {sorted(design.behavior)})")
+        return entries
+    raise ManifestError(
+        f"operation '{op_id}': '{kind}' must be a list or {{from_spec: <key>}}")
+
+
 def run_pipeline(
     pipeline_name: str,
     pipelines: dict,
@@ -160,12 +183,14 @@ def run_pipeline(
             record["phase"] = "execute"
             artifacts[op_id] = artifact_path
         elif kind == "simulation":
+            resolved = dict(op, _runs=_from_spec(op.get("runs", []), design, "runs", op_id))
             status, record = run_simulation(
-                op, registries, bin_dir, artifacts, op_work, name, timeout_s, design
+                resolved, registries, bin_dir, artifacts, op_work, name, timeout_s, design
             )
             artifacts[("simulation", op_id)] = record
         elif kind == "validation":
-            status, record, cases = run_validation(op, registries, artifacts, design)
+            resolved = dict(op, _cases=_from_spec(op.get("cases", []), design, "cases", op_id))
+            status, record, cases = run_validation(resolved, registries, artifacts, design)
             behavioral.extend(cases)
         else:  # unreachable - validate_pipelines rejects unknown kinds
             raise ManifestError(f"pipeline '{pipeline_name}': unknown kind '{kind}'")
