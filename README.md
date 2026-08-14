@@ -144,6 +144,14 @@ selection, then validate. Behavioral pipelines need `iverilog`/`vvp` on
 `PATH`; this repo never installs, builds or version-pins a simulator -
 provisioning belongs to the environment.
 
+`behavioral_roundtrip` is the same idea with Muffin left out: simulate the
+original RTL and the regenerated RTL under one testbench and require identical
+traces. It exists for designs whose contract cannot be checked by reparsing -
+`combinational/assign_delay` is one, because a dropped assignment delay
+regenerates as perfectly valid Verilog that responds at the wrong time
+(hif-backend#24). Keeping it separate from `muffin_behavioral` is what lets a
+failure say whether the *round trip* or the *instrumentation* broke behavior.
+
 **See [`docs/adding-things.md`](docs/adding-things.md)** for how to add a
 transformation tool, a simulator, a validator, a pipeline, a curated design or
 a behavioral test - including the fixed placeholder semantics and a worked
