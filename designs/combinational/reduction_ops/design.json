@@ -1,0 +1,11 @@
+{
+    "top": "reduction_ops",
+    "pipeline": "muffin_behavioral",
+    "sources": ["reduction_ops.v"],
+    "fixtures": {
+        "testbench": "reduction_ops_tb.v",
+        "expect_sa1_masked_bit0": "expect_sa1_masked_bit0.csv",
+        "expect_sa0_masked_bit4": "expect_sa0_masked_bit4.csv"
+    },
+    "note": "Multi-bit fault coverage. The 8-bit `masked` output exercises the bitwise instrumentation path (rhs | (1<<bit) and rhs & ~(1<<bit)), which is a different code path from the 1-bit reductions where the injected value is a plain literal."
+}

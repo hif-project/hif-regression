@@ -1,0 +1,55 @@
+# Multi-bit fault coverage.
+#
+# For a location wider than one bit, Muffin does not replace the value with a
+# literal - it forces a single bit and leaves the rest intact:
+#   SA1 on bit N  ->  rhs | (1 << N)
+#   SA0 on bit N  ->  rhs & ~(1 << N)
+# The oracles below are derived from those two expressions, applied to
+# masked = d & 8'hF0.
+
+runs:
+  - {id: golden, params: {mut: 0}}
+
+  - id: sa1_masked_bit0
+    params:
+      mut: {from: enumerate, array: faults, where: {signal: masked, bit: 0, type: stuck-at-1}, take: id}
+
+  - id: sa0_masked_bit4
+    params:
+      mut: {from: enumerate, array: faults, where: {signal: masked, bit: 4, type: stuck-at-0}, take: id}
+
+  - id: sa0_all_ones
+    params:
+      mut: {from: enumerate, array: faults, where: {signal: all_ones, bit: 0, type: stuck-at-0}, take: id}
+
+expectations:
+  - id: golden_matches_rtl
+    use: trace_equal
+    left:  {from: simulate_reference,    run: reference}
+    right: {from: simulate_instrumented, run: golden}
+
+  # bit 0 is masked off by 8'hF0, so forcing it high sets a bit the fault-free
+  # design never sets - visible on every vector.
+  - id: sa1_masked_bit0_expected_trace
+    use: expected_trace
+    left:     {from: simulate_instrumented, run: sa1_masked_bit0}
+    expected: {fixture: expect_sa1_masked_bit0}
+
+  # bit 4 survives the mask, so forcing it low is visible only on the vectors
+  # where d[4] is actually set (ff and f0), and invisible on the others.
+  - id: sa0_masked_bit4_expected_trace
+    use: expected_trace
+    left:     {from: simulate_instrumented, run: sa0_masked_bit4}
+    expected: {fixture: expect_sa0_masked_bit4}
+
+  - id: sa1_masked_bit0_detected
+    use: trace_differs
+    left:  {from: simulate_instrumented, run: sa1_masked_bit0}
+    right: {from: simulate_reference,    run: reference}
+
+  # A 1-bit location for contrast: all_ones is only high on the all-ones
+  # vector, so forcing it low is detectable there.
+  - id: sa0_all_ones_detected
+    use: trace_differs
+    left:  {from: simulate_instrumented, run: sa0_all_ones}
+    right: {from: simulate_reference,    run: reference}

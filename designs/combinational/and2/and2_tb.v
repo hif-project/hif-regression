@@ -10,7 +10,7 @@ module and2_tb;
   integer mut;
   integer fd;
   integer i;
-  reg [1023:0] tracefile;
+  reg [4095:0] tracefile;
 
   and2 dut (
     .a(a), .b(b), .y(y)
@@ -23,6 +23,10 @@ module and2_tb;
     if (!$value$plusargs("mut=%d", mut)) mut = 0;
     if (!$value$plusargs("trace=%s", tracefile)) tracefile = "trace.csv";
     fd = $fopen(tracefile, "w");
+    if (fd == 0) begin
+      $display("ERROR: cannot open trace file");
+      $finish;
+    end
     $fdisplay(fd, "time,a,b,y");
     for (i = 0; i < 4; i = i + 1) begin
       {a, b} = i[1:0];
