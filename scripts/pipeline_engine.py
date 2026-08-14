@@ -1,13 +1,20 @@
 """
 Generic pipeline execution engine for hif-regression.
 
-Reads manifests/tools.yaml (capability registry: command + artifact
-templates) and manifests/pipelines.yaml (named step sequences + optional
-probes), and executes a named pipeline against a design's source files,
-producing the same per-stage PASS/CLEAN_REJECT/CRASH/TIMEOUT classification
-run_regression.py always has - just driven by data instead of per-tool
-Python branches. Adding a new tool or pipeline is a manifest change; this
-module has no tool-specific knowledge.
+Reads the capability registries (manifests/tools.yaml, simulators.yaml,
+validators.yaml) and manifests/pipelines.yaml (named, ordered operation
+sequences), and executes a named pipeline against a design's source files.
+
+An operation is one of three kinds - `tool`, `simulation` or `validation` -
+and dispatch happens on that kind alone. This module has no knowledge of any
+individual tool, simulator or validator: adding a new one is a manifest
+change, and adding a new *kind* of execution is the only thing that would
+touch this file.
+
+Execution is strictly top-to-bottom. There is no dependency resolution, no
+topological sort and no parallelism - an operation may reference earlier
+operations by id, which is enough to make data flow explicit without becoming
+a workflow engine.
 """
 import glob as globmod
 import sys
@@ -16,6 +23,9 @@ from pathlib import Path
 import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from manifest_schema import validate_pipelines  # noqa: E402
+from placeholders import ManifestError, expand_argv  # noqa: E402
+from simulation import run_simulation  # noqa: E402
 from toolchain_classify import (  # noqa: E402
     STATUS_SEVERITY,
     classify,
@@ -23,6 +33,7 @@ from toolchain_classify import (  # noqa: E402
     run_tool,
     trim_result,
 )
+from validators import run_validation  # noqa: E402
 
 
 class ArtifactResolutionError(Exception):
@@ -34,6 +45,10 @@ def load_tools(path: Path) -> dict:
 
 
 def load_pipelines(path: Path) -> dict:
+    return yaml.safe_load(path.read_text())
+
+
+def load_yaml_manifest(path: Path) -> dict:
     return yaml.safe_load(path.read_text())
 
 
@@ -49,22 +64,17 @@ def resolve_artifact(template: str, context: dict) -> Path:
     return Path(pattern)
 
 
-def build_argv(command_template: list, context: dict, inputs: list) -> list:
-    argv = []
-    for token in command_template:
-        if token == "{inputs}":
-            argv.extend(str(p) for p in inputs)
-        else:
-            argv.append(token.format(**context))
-    return argv
-
-
 def run_step(tool_id: str, tools: dict, bin_dir, inputs: list, workdir: Path, name: str, timeout_s: int):
     tool_def = tools[tool_id]
     workdir.mkdir(parents=True, exist_ok=True)
     context = {"input": str(inputs[0]), "workdir": str(workdir), "name": name}
     binary = find_tool(tool_def["command"][0], bin_dir)
-    argv = [binary] + build_argv(tool_def["command"][1:], context, inputs)
+    argv = [binary] + expand_argv(
+        tool_def["command"][1:],
+        context,
+        {"inputs": [str(p) for p in inputs]},
+        f"tool '{tool_id}'",
+    )
 
     r = run_tool(argv, cwd=workdir, timeout_s=timeout_s)
 
@@ -91,49 +101,79 @@ def _worst_status(stages: dict) -> str:
     return max(stages.values(), key=lambda s: STATUS_SEVERITY[s["status"]])["status"]
 
 
+def resolve_inputs(op, artifacts, previous_id, sources, pipeline_name):
+    """An operation with no explicit 'inputs' consumes its predecessor's
+    artifact - which keeps linear pipelines terse - and the first operation
+    consumes the design's own sources. An explicit reference names an earlier
+    operation, which is what a former probe becomes."""
+    refs = op.get("inputs")
+    if not refs:
+        if previous_id is None:
+            return list(sources)
+        return [artifacts[previous_id]]
+
+    resolved = []
+    for ref in refs:
+        ref_id = ref["from"] if isinstance(ref, dict) else ref
+        if ref_id not in artifacts:
+            raise ManifestError(
+                f"pipeline '{pipeline_name}', operation '{op['id']}': "
+                f"references '{ref_id}', which produced no artifact"
+            )
+        resolved.append(artifacts[ref_id])
+    return resolved
+
+
 def run_pipeline(
     pipeline_name: str,
     pipelines: dict,
-    tools: dict,
+    registries: dict,
     bin_dir,
     sources: list,
     work_root: Path,
     name: str,
     timeout_s: int,
+    design=None,
 ):
-    """Runs a named pipeline's main steps (stopping at the first non-PASS),
-    then - only if every main step passed - its probes (stopping at the
-    first non-PASS probe). Returns {"stages": {step_id: {...}}, "overall_status": ...}."""
+    """Executes a named pipeline's operations strictly in order, stopping at
+    the first non-PASS. Dispatch is on `kind` alone - this function has no
+    knowledge of any individual tool, simulator or validator."""
+    validate_pipelines(pipelines, "manifests/pipelines.yaml")
     pipeline = pipelines["pipelines"][pipeline_name]
+
     stages = {}
-    step_artifacts = {}
-    current_inputs = list(sources)
+    artifacts = {}
+    behavioral = []
+    previous_id = None
 
-    all_main_passed = True
-    for step in pipeline["steps"]:
-        step_id = step["id"]
-        status, artifact_path, record = run_step(
-            step["tool"], tools, bin_dir, current_inputs, work_root / step_id, name, timeout_s
-        )
-        stages[step_id] = record
-        step_artifacts[step_id] = artifact_path
-        if status != "PASS":
-            all_main_passed = False
-            break
-        current_inputs = [artifact_path]
+    for op in pipeline["operations"]:
+        op_id = op["id"]
+        kind = op["kind"]
+        op_work = work_root / op_id
 
-    if all_main_passed:
-        for probe in pipeline.get("probes", []):
-            after_id = probe["after"]
-            tool_id = probe["tool"]
-            probe_input = step_artifacts.get(after_id)
-            if probe_input is None:
-                raise SystemExit(f"pipeline '{pipeline_name}': probe references unknown step id '{after_id}'")
-            status, _artifact_path, record = run_step(
-                tool_id, tools, bin_dir, [probe_input], work_root / f"probe_{tool_id}", name, timeout_s
+        if kind == "tool":
+            inputs = resolve_inputs(op, artifacts, previous_id, sources, pipeline_name)
+            status, artifact_path, record = run_step(
+                op["use"], registries["tools"], bin_dir, inputs, op_work, name, timeout_s
             )
-            stages[tool_id] = record
-            if status != "PASS":
-                break
+            record["kind"] = "tool"
+            record["phase"] = "execute"
+            artifacts[op_id] = artifact_path
+        elif kind == "simulation":
+            status, record = run_simulation(
+                op, registries, bin_dir, artifacts, op_work, name, timeout_s, design
+            )
+            artifacts[("simulation", op_id)] = record
+        elif kind == "validation":
+            status, record, cases = run_validation(op, registries, artifacts, design)
+            behavioral.extend(cases)
+        else:  # unreachable - validate_pipelines rejects unknown kinds
+            raise ManifestError(f"pipeline '{pipeline_name}': unknown kind '{kind}'")
 
-    return {"stages": stages, "overall_status": _worst_status(stages)}
+        stages[op_id] = record
+        previous_id = op_id
+        if status != "PASS":
+            break
+
+    return {"stages": stages, "behavioral": behavioral,
+            "overall_status": _worst_status(stages)}
