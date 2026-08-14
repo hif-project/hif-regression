@@ -1,0 +1,15 @@
+# One claim: the regenerated design behaves like the design it came from,
+# timing included. The trace carries $time with every sample, so trace_equal
+# over it is a timing comparison and not just a value comparison.
+#
+# There is no fault, no instrumentation and no second stimulus here - the
+# question is whether the toolchain preserved behavior, and Muffin is not in
+# this pipeline at all.
+
+runs: []
+
+expectations:
+  - id: regenerated_matches_rtl
+    use: trace_equal
+    left:  {from: simulate_reference,   run: reference}
+    right: {from: simulate_regenerated, run: regenerated}
