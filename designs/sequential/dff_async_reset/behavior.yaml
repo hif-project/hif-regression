@@ -1,0 +1,47 @@
+# q is the only state element, so it is the single fault location and
+# {signal, bit, type} is an unambiguous selector.
+#
+# Forcing q high overrides both the reset and the capture path, so every
+# sample reads 1 - including the two rows where the fault-free design holds 0
+# because reset was asserted between clock edges.
+#
+# The expectation that matters most here is golden_matches_rtl, not the fault
+# cases. The stimulus asserts and releases rst_n while the clock is idle,
+# which is the only way a trace can tell an asynchronous reset from a
+# synchronous one. hif-backend#21 regenerated this design as
+# `always @(posedge clk)` - dropping the reset edge - and no check saw it,
+# because the construct was present in the corpus but never exercised in the
+# one way that distinguishes it. Verified against a synchronous twin of this
+# design: the two disagree at rst_asserted_idle and rst_released_idle.
+
+runs:
+  - {id: golden, params: {mut: 0}}
+
+  - id: sa1_q
+    params:
+      mut: {from: enumerate, array: faults, where: {signal: q, bit: 0, type: stuck-at-1}, take: id}
+
+  - id: sa0_q
+    params:
+      mut: {from: enumerate, array: faults, where: {signal: q, bit: 0, type: stuck-at-0}, take: id}
+
+expectations:
+  - id: golden_matches_rtl
+    use: trace_equal
+    left:  {from: simulate_reference,    run: reference}
+    right: {from: simulate_instrumented, run: golden}
+
+  - id: sa1_q_expected_trace
+    use: expected_trace
+    left:     {from: simulate_instrumented, run: sa1_q}
+    expected: {fixture: expect_sa1_q}
+
+  - id: sa1_q_detected
+    use: trace_differs
+    left:  {from: simulate_instrumented, run: sa1_q}
+    right: {from: simulate_reference,    run: reference}
+
+  - id: sa0_q_detected
+    use: trace_differs
+    left:  {from: simulate_instrumented, run: sa0_q}
+    right: {from: simulate_reference,    run: reference}

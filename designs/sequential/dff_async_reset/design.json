@@ -1,0 +1,10 @@
+{
+    "top": "dff_async_reset",
+    "pipeline": "muffin_behavioral",
+    "sources": ["dff_async_reset.v"],
+    "fixtures": {
+        "testbench": "dff_async_reset_tb.v",
+        "expect_sa1_q": "expect_sa1_q.csv"
+    },
+    "note": "The asynchronous reset must be exercised between clock edges, not merely present. hif-backend#21 dropped the reset edge from the sensitivity list and no check noticed, because a testbench that only moves inputs on a clock edge produces identical traces for a synchronous and an asynchronous reset."
+}
