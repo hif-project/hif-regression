@@ -99,12 +99,12 @@ python3 scripts/report.py   # reads reports/curated-report.json + reports/extern
 
 `designs/<category>/` holds small, hand-written HDL fixtures we own and
 understand completely - not a benchmark dump. Point is controlled semantic
-coverage, not quantity. 52 designs, 14 of them carrying behavioral
+coverage, not quantity. 53 designs, 15 of them carrying behavioral
 acceptance tests:
 
 | Category | Designs | Behavioral |
 |---|---|---|
-| combinational | 19 | 6 |
+| combinational | 20 | 7 |
 | sequential | 13 | 5 |
 | parameterized | 8 | 1 |
 | hierarchical | 6 | 1 |
@@ -161,8 +161,11 @@ original RTL and the regenerated RTL under one testbench and require identical
 traces. It exists for designs whose contract cannot be checked by reparsing -
 `combinational/assign_delay` is one, because a dropped assignment delay
 regenerates as perfectly valid Verilog that responds at the wrong time
-(hif-backend#24). Keeping it separate from `muffin_behavioral` is what lets a
-failure say whether the *round trip* or the *instrumentation* broke behavior.
+(hif-backend#24). `combinational/constant_tieoff` is another, because a
+dropped constant tie-off regenerates as perfectly valid Verilog whose output
+is simply undriven and reads x (hif-backend#30). Keeping it separate from
+`muffin_behavioral` is what lets a failure say whether the *round trip* or the
+*instrumentation* broke behavior.
 
 `vhdl_to_verilog` is behavioral too, but it cannot be a comparison: there is no
 VHDL simulator in this environment, so the design's own source cannot be run.

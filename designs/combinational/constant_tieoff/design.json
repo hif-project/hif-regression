@@ -1,0 +1,9 @@
+{
+    "top": "constant_tieoff",
+    "pipeline": "behavioral_roundtrip",
+    "sources": ["constant_tieoff.v"],
+    "fixtures": {
+        "testbench": "constant_tieoff_tb.v"
+    },
+    "note": "Regression for hif-backend#30, which dropped an output port's folded initial value and so lost the constant continuous assignment driving it. Behavioral rather than structural because the broken output compiles and reparses cleanly - the only symptom is that the output reads x, which no text or reparse check sees. Reuses behavioral_roundtrip rather than adding a pipeline: both sides are Verilog, so the strong reference-vs-regenerated comparison is available here."
+}
