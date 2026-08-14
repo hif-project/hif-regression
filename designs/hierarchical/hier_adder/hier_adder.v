@@ -1,18 +1,16 @@
 // A full adder built from two half adders, so the interesting logic
 // originates in a child module rather than in the top level.
 //
-// Structural only for now. This design was written as the behavioral
-// hierarchy fixture, and in that role it immediately failed golden
-// equivalence: the regenerated Verilog is not behaviorally equivalent to this
-// source, independently of Muffin. verilog2hif inlines the instances and
-// hif2verilog then emits each assignment as its own process, giving the
-// process that computes `sum` a sensitivity list of (cin, a, b) - the
-// transitive inputs - while the `s1` it actually reads is written by a
-// different process. `sum` can therefore be evaluated from a stale `s1`.
+// This is the behavioral hierarchy fixture. It was demoted to structural-only
+// when it first failed golden equivalence: hif2verilog hoisted each
+// frontend-generated logic cone into its own process, so the process
+// computing `sum` kept a sensitivity list of (cin, a, b) - the transitive
+// inputs - while the `s1` it actually reads was written by a different
+// process, and could be read stale.
 //
-// See https://github.com/hif-project/hif-backend/issues/16. Promote this back
-// to muffin_behavioral once that is fixed; the stimulus and oracle are
-// straightforward to restore (full 8-vector truth table, fault on s1).
+// Fixed in hif-backend#16 (cones are now emitted at their call site, inside
+// the process that reads them), and restored to muffin_behavioral here. The
+// full 8-vector truth table and the fault on s1 are back.
 //
 // Instance wiring is a separate matter: verilog2hif inlines instances, so
 // Muffin never sees a hierarchy here at all -
