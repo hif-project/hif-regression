@@ -1,0 +1,6 @@
+{
+    "top": "vhdl_and2",
+    "pipeline": "vhdl_roundtrip",
+    "sources": ["vhdl_and2.vhd"],
+    "note": "Cross-repository coverage for the VHDL path, added with the fix for hif-backend#27. The pipeline's non-empty-artifact rule is what catches that defect: hif2vhdl exited 0 having written a zero-byte file for its only design unit. Directory form with an explicit sources list is what lets a .vhd design be discovered at all."
+}
