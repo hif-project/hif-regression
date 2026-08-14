@@ -99,16 +99,23 @@ python3 scripts/report.py   # reads reports/curated-report.json + reports/extern
 
 `designs/<category>/` holds small, hand-written HDL fixtures we own and
 understand completely - not a benchmark dump. Point is controlled semantic
-coverage, not quantity. 48 designs, 10 of them carrying behavioral
+coverage, not quantity. 51 designs, 13 of them carrying behavioral
 acceptance tests:
 
 | Category | Designs | Behavioral |
 |---|---|---|
-| combinational | 16 | 4 |
-| sequential | 13 | 4 |
-| parameterized | 7 | 1 |
-| hierarchical | 6 | 0 |
+| combinational | 18 | 5 |
+| sequential | 13 | 5 |
+| parameterized | 8 | 1 |
+| hierarchical | 6 | 1 |
 | structural | 6 | 1 |
+
+Almost every design is Verilog. `combinational/vhdl_and2` is VHDL, and runs
+`vhdl_roundtrip` instead: `vhdl2hif` and `hif2vhdl` had been declared in
+`tools.yaml` from the beginning with no pipeline ever reaching them, so nothing
+here exercised the VHDL side of the toolchain - which is where hif-backend#27
+lived. A `.vhd` design has to be in directory form with an explicit `sources`
+list, since bare-file discovery globs `*.v`.
 
 Each design is a plain source file (`designs/<category>/<name>.v`, or a
 folder for genuinely multi-file designs), run through a named **pipeline**

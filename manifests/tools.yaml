@@ -51,7 +51,11 @@ hif2vhdl:
   consumes: hif
   produces: vhdl
   command: ["hif2vhdl", "{input}", "-D", "{workdir}/regen"]
-  artifact: "{workdir}/regen/*.vhd"
+  # hif2vhdl puts its output in a `src` subdirectory of -D, where hif2verilog
+  # writes straight into it. This entry said `regen/*.vhd` from the beginning
+  # and was never exercised, because until vhdl_roundtrip existed no design
+  # reached this tool at all.
+  artifact: "{workdir}/regen/src/*.vhd"
 
 muffin_instrument:
   repository: hif-muffin
