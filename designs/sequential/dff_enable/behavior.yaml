@@ -1,0 +1,35 @@
+# q has one fault location (a single assignment), so {signal, bit, type} is
+# unambiguous. At one bit wide the injected value is a literal, so the fault
+# overrides reset, enable and hold alike - the expected traces are constant.
+
+runs:
+  - {id: golden, params: {mut: 0}}
+
+  - id: sa0_q
+    params:
+      mut: {from: enumerate, array: faults, where: {signal: q, bit: 0, type: stuck-at-0}, take: id}
+
+  - id: sa1_q
+    params:
+      mut: {from: enumerate, array: faults, where: {signal: q, bit: 0, type: stuck-at-1}, take: id}
+
+expectations:
+  - id: golden_matches_rtl
+    use: trace_equal
+    left:  {from: simulate_reference,    run: reference}
+    right: {from: simulate_instrumented, run: golden}
+
+  - id: sa0_q_expected_trace
+    use: expected_trace
+    left:     {from: simulate_instrumented, run: sa0_q}
+    expected: {fixture: expect_sa0_q}
+
+  - id: sa1_q_expected_trace
+    use: expected_trace
+    left:     {from: simulate_instrumented, run: sa1_q}
+    expected: {fixture: expect_sa1_q}
+
+  - id: sa1_q_detected
+    use: trace_differs
+    left:  {from: simulate_instrumented, run: sa1_q}
+    right: {from: simulate_reference,    run: reference}

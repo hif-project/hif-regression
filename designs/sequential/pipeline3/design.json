@@ -1,0 +1,10 @@
+{
+    "top": "pipeline3",
+    "pipeline": "muffin_behavioral",
+    "sources": ["pipeline3.v"],
+    "fixtures": {
+        "testbench": "pipeline3_tb.v",
+        "expect_sa1_s1_bit0": "expect_sa1_s1_bit0.csv"
+    },
+    "note": "Fault propagation across pipeline stages. The fault is injected on the first stage but only dout is observed, so passing requires the corruption to arrive at the output two cycles later - separating the effect from its cause in time."
+}

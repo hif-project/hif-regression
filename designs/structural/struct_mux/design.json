@@ -1,0 +1,10 @@
+{
+    "top": "struct_mux",
+    "pipeline": "muffin_behavioral",
+    "sources": ["struct_mux.v"],
+    "fixtures": {
+        "testbench": "struct_mux_tb.v",
+        "expect_sa1_nsel": "expect_sa1_nsel.csv"
+    },
+    "note": "Fault sites arising from primitive gate instances rather than continuous assignments. The nsel fault is observable at exactly one input combination, which makes it a sharper check than a fault that changes the whole trace."
+}

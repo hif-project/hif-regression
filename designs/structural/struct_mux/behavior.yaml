@@ -1,0 +1,43 @@
+# Every internal node of the structural mux is a fault location, because each
+# primitive gate becomes its own assignment.
+#
+# Forcing nsel high leaves the mux mostly working:
+#   a_gated = a & nsel  ->  a
+#   b_gated = b & sel   ->  unchanged
+#   y       = a | (b & sel)
+# which matches the fault-free mux everywhere except a=1, b=0, sel=1, where the
+# fault-free design selects b (0) and the faulty one leaks a (1). A single
+# differing vector out of eight - a much sharper check than a fault that
+# changes the entire trace.
+
+runs:
+  - {id: golden, params: {mut: 0}}
+
+  - id: sa1_nsel
+    params:
+      mut: {from: enumerate, array: faults, where: {signal: nsel, bit: 0, type: stuck-at-1}, take: id}
+
+  - id: sa0_y
+    params:
+      mut: {from: enumerate, array: faults, where: {signal: y, bit: 0, type: stuck-at-0}, take: id}
+
+expectations:
+  - id: golden_matches_rtl
+    use: trace_equal
+    left:  {from: simulate_reference,    run: reference}
+    right: {from: simulate_instrumented, run: golden}
+
+  - id: sa1_nsel_expected_trace
+    use: expected_trace
+    left:     {from: simulate_instrumented, run: sa1_nsel}
+    expected: {fixture: expect_sa1_nsel}
+
+  - id: sa1_nsel_detected
+    use: trace_differs
+    left:  {from: simulate_instrumented, run: sa1_nsel}
+    right: {from: simulate_reference,    run: reference}
+
+  - id: sa0_y_detected
+    use: trace_differs
+    left:  {from: simulate_instrumented, run: sa0_y}
+    right: {from: simulate_reference,    run: reference}

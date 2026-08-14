@@ -1,0 +1,42 @@
+# mux4 has exactly one fault location (the single continuous assignment to y),
+# so {signal, bit, type} identifies a fault unambiguously.
+
+runs:
+  - {id: golden, params: {mut: 0}}
+
+  - id: sa0_y
+    params:
+      mut: {from: enumerate, array: faults, where: {signal: y, bit: 0, type: stuck-at-0}, take: id}
+
+  - id: sa1_y
+    params:
+      mut: {from: enumerate, array: faults, where: {signal: y, bit: 0, type: stuck-at-1}, take: id}
+
+expectations:
+  - id: golden_matches_rtl
+    use: trace_equal
+    left:  {from: simulate_reference,    run: reference}
+    right: {from: simulate_instrumented, run: golden}
+
+  # y is 1 bit wide, so the injected value is a literal, independent of d/sel.
+  - id: sa0_y_expected_trace
+    use: expected_trace
+    left:     {from: simulate_instrumented, run: sa0_y}
+    expected: {fixture: expect_sa0_y}
+
+  - id: sa1_y_expected_trace
+    use: expected_trace
+    left:     {from: simulate_instrumented, run: sa1_y}
+    expected: {fixture: expect_sa1_y}
+
+  # Both are detected: the fault-free output alternates under this stimulus, so
+  # neither constant can reproduce it.
+  - id: sa0_y_detected
+    use: trace_differs
+    left:  {from: simulate_instrumented, run: sa0_y}
+    right: {from: simulate_reference,    run: reference}
+
+  - id: sa1_y_detected
+    use: trace_differs
+    left:  {from: simulate_instrumented, run: sa1_y}
+    right: {from: simulate_reference,    run: reference}

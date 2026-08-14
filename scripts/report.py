@@ -14,14 +14,17 @@ import argparse
 import json
 from pathlib import Path
 
-STATUS_COLS = ["PASS", "CLEAN_REJECT", "CRASH", "TIMEOUT"]
+# Ordered by severity. A report written before FAIL existed (external
+# benchmarks, or an archived curated run) simply has no FAIL key, so counts are
+# read with .get rather than assumed present.
+STATUS_COLS = ["PASS", "CLEAN_REJECT", "TIMEOUT", "FAIL", "CRASH"]
 
 
 def _totals_row(rows):
     grand = {k: 0 for k in STATUS_COLS}
     for counts in rows:
         for k in STATUS_COLS:
-            grand[k] += counts[k]
+            grand[k] += counts.get(k, 0)
     return grand
 
 
@@ -44,6 +47,37 @@ def render_curated(report: dict) -> str:
         for d in anomalies:
             failing_stage = next((n for n, s in d["stages"].items() if s["status"] != "PASS"), None)
             lines.append(f"- `{d['category']}/{d['name']}`: **{d['overall_status']}** at `{failing_stage}`")
+    return "\n".join(lines)
+
+
+def render_behavioral(report):
+    """Behavioral results, summarised. Detail deliberately stays in the JSON
+    artifact: a CI summary that dumps whole traces stops being readable exactly
+    when it matters most."""
+    cases = report.get("behavioral") or []
+    if not cases:
+        return ""
+
+    passed = [c for c in cases if c["status"] == "PASS"]
+    failed = [c for c in cases if c["status"] != "PASS"]
+
+    lines = ["", "## Muffin behavioral acceptance", "",
+             f"{len(passed)} passed, {len(failed)} failed "
+             f"across {len({c['design'] for c in cases})} design(s)."]
+
+    if failed:
+        lines += ["", "| Design | Case | Validator | Fault | Status | Mismatch |",
+                  "|---|---|---|---|---|---|"]
+        for c in failed:
+            selection = c.get("fault_selection")
+            fault = "-" if not selection else (
+                f"{selection.get('type')} {selection.get('signal')}[{selection.get('bit')}]"
+                + (f" (fault {c['resolved_fault_id']})"
+                   if c.get("resolved_fault_id") is not None else "")
+            )
+            mismatch = (c.get("mismatch") or "").replace("|", "\\|")[:120]
+            lines.append(f"| `{c['category']}/{c['design']}` | `{c['case']}` | "
+                         f"`{c['validator']}` | {fault} | **{c['status']}** | {mismatch} |")
     return "\n".join(lines)
 
 
@@ -99,7 +133,11 @@ def main():
 
     curated_path = Path(args.curated)
     if curated_path.exists():
-        sections.append(render_curated(json.loads(curated_path.read_text())))
+        curated = json.loads(curated_path.read_text())
+        sections.append(render_curated(curated))
+        behavioral = render_behavioral(curated)
+        if behavioral:
+            sections.append(behavioral)
     else:
         sections.append("## Curated corpus\n\n_not run this time._")
 
