@@ -98,9 +98,17 @@ python3 scripts/report.py   # reads reports/curated-report.json + reports/extern
 ## Curated design corpus
 
 `designs/<category>/` holds small, hand-written HDL fixtures we own and
-understand completely - not a benchmark dump. Categories: `combinational`,
-`sequential`, `parameterized`, `hierarchical`, `structural`. Point is
-controlled semantic coverage, not quantity.
+understand completely - not a benchmark dump. Point is controlled semantic
+coverage, not quantity. 48 designs, 10 of them carrying behavioral
+acceptance tests:
+
+| Category | Designs | Behavioral |
+|---|---|---|
+| combinational | 16 | 4 |
+| sequential | 13 | 4 |
+| parameterized | 7 | 1 |
+| hierarchical | 6 | 0 |
+| structural | 6 | 1 |
 
 Each design is a plain source file (`designs/<category>/<name>.v`, or a
 folder for genuinely multi-file designs), run through a named **pipeline**
@@ -113,14 +121,36 @@ regression means failure. A design only needs an optional `<name>.json`
 sidecar when it deviates from its category's default, e.g. `and2.json`
 selects `"pipeline": "muffin_roundtrip"` to also probe Muffin instrumentation.
 
-**To add a new curated design:** drop the source file in the right category,
-add a `.json` sidecar only if the default pipeline doesn't fit, and run
-`scripts/run_regression.py --only <name>` to check it before committing.
-**To add a new tool** (a future `ddt`, another backend, ...): add it to
-`tools.yaml` (command + artifact templates - see that file's header
-comment) and reference it from a pipeline in `pipelines.yaml`. No runner
-code changes - `run_regression.py`/`pipeline_engine.py` have no tool-specific
-knowledge.
+A pipeline is an ordered list of **operations**, each of one of three kinds -
+deliberately distinct, so a failure is attributable rather than opaque:
+
+| kind | registry | consumes | produces | asserts |
+|---|---|---|---|---|
+| `tool` | `manifests/tools.yaml` | artifacts | artifacts | nothing |
+| `simulation` | `manifests/simulators.yaml` | sources + stimulus | traces | nothing |
+| `validation` | `manifests/validators.yaml` | results | a verdict | yes |
+
+Operations run strictly top to bottom, stopping at the first non-`PASS`. There
+is no scheduler and no DAG: an operation with no explicit `inputs` consumes its
+predecessor's artifact, and an explicit `inputs: [<id>]` names an earlier one.
+
+**Behavioral coverage is an orthogonal capability, not a category.** A design
+gains it by moving to directory form inside its existing category - never by
+being duplicated. Such a design carries a testbench, a `behavior.yaml`
+(runtime fault selection and expectations) and its oracles, and runs the
+`muffin_behavioral` pipeline: parse, enumerate, instrument, regenerate,
+simulate the original RTL, simulate the instrumented netlist once per fault
+selection, then validate. Behavioral pipelines need `iverilog`/`vvp` on
+`PATH`; this repo never installs, builds or version-pins a simulator -
+provisioning belongs to the environment.
+
+**See [`docs/adding-things.md`](docs/adding-things.md)** for how to add a
+transformation tool, a simulator, a validator, a pipeline, a curated design or
+a behavioral test - including the fixed placeholder semantics and a worked
+example showing that a future `Verilog -> DDT -> A2Tool -> C++ -> compare
+against RTL` flow is expressible with manifest entries alone. Adding any of
+these is a manifest change; `run_regression.py`/`pipeline_engine.py` have no
+tool-, simulator- or validator-specific knowledge.
 
 ## External benchmarks
 

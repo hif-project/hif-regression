@@ -21,10 +21,18 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y g++ libpoco-dev flex bison
+          # iverilog drives the behavioral pipelines. Whatever the distro ships
+          # is fine - the simulator registry describes how to invoke iverilog
+          # and vvp, never which version. Nothing here builds or vendors it.
+          sudo apt-get install -y g++ libpoco-dev flex bison iverilog
 
       - name: Install Python dependencies
         run: pip install pyyaml
+
+      # Cheap, and independent of the toolchain build - so a broken engine is
+      # reported in seconds rather than after a full build.
+      - name: Engine unit tests
+        run: python3 -m unittest discover -s tests -v
 
       - name: Build toolchain (floating develop)
         id: build
@@ -45,6 +53,9 @@ jobs:
           export PATH="$PREFIX/bin:$PATH"
           export LD_LIBRARY_PATH="$PREFIX/lib:${LD_LIBRARY_PATH:-}"
           python3 scripts/run_regression.py --manifest-label develop
+          # Reads the report just written: re-resolves every declarative fault
+          # selection against the faults.json the run actually produced.
+          python3 -m unittest tests.test_correspondence -v
 
       - name: External benchmark regression
         if: steps.build.outcome == 'success'
