@@ -43,7 +43,12 @@ from manifest_schema import (  # noqa: E402
 )
 from pipeline_engine import load_yaml_manifest, run_pipeline  # noqa: E402
 from placeholders import ManifestError  # noqa: E402
-from toolchain_classify import DEFAULT_TIMEOUT_S  # noqa: E402
+from toolchain_classify import DEFAULT_TIMEOUT_S, STATUS_SEVERITY  # noqa: E402
+
+# Report columns, ordered by severity so the table reads left-to-right from
+# "fine" to "worst". Derived from STATUS_SEVERITY rather than restated, so a
+# future status cannot be added to the classifier and silently omitted here.
+STATUS_COLUMNS = sorted(STATUS_SEVERITY, key=lambda s: STATUS_SEVERITY[s])
 
 
 @dataclasses.dataclass
@@ -162,11 +167,22 @@ def run_design(design: Design, pipelines: dict, registries: dict, bin_dir, work_
 
 def build_report(results, manifest_label):
     designs_out = []
+    behavioral_out = []
     counts = {}
     for res in results:
         design = res["design"]
         status = res["overall_status"]
-        counts.setdefault(design.category, {"PASS": 0, "CLEAN_REJECT": 0, "CRASH": 0, "TIMEOUT": 0})
+        for case in res.get("behavioral", []):
+            behavioral_out.append({
+                "design": design.name, "category": design.category,
+                "pipeline": design.pipeline, "case": case["id"],
+                "validator": case["validator"], "impl": case["impl"],
+                "status": case["status"], "mismatch": case["mismatch"],
+                "fault_selection": case.get("fault_selection"),
+                "resolved_fault_id": case.get("resolved_fault_id"),
+                "left": case["left"], "right": case["right"],
+            })
+        counts.setdefault(design.category, {k: 0 for k in STATUS_COLUMNS})
         counts[design.category][status] += 1
         designs_out.append({
             "name": design.name,
@@ -183,28 +199,30 @@ def build_report(results, manifest_label):
         "corpus": "internal",
         "summary": counts,
         "designs": designs_out,
+        "behavioral": behavioral_out,
     }
 
 
 def print_summary(report):
     print(f"\n== hif-regression: curated corpus ({report['manifest']}) ==\n")
-    header = f"{'Category':<15}{'Total':>7}{'Pass':>7}{'CleanReject':>13}{'Crash':>7}{'Timeout':>9}"
+    header = (f"{'Category':<15}{'Total':>7}{'Pass':>7}{'CleanReject':>13}"
+              f"{'Timeout':>9}{'Fail':>7}{'Crash':>7}")
     print(header)
     print("-" * len(header))
-    grand = {"PASS": 0, "CLEAN_REJECT": 0, "CRASH": 0, "TIMEOUT": 0}
+    grand = {k: 0 for k in STATUS_COLUMNS}
     for category, counts in sorted(report["summary"].items()):
         total = sum(counts.values())
         for k in grand:
-            grand[k] += counts[k]
+            grand[k] += counts.get(k, 0)
         print(
             f"{category:<15}{total:>7}{counts['PASS']:>7}{counts['CLEAN_REJECT']:>13}"
-            f"{counts['CRASH']:>7}{counts['TIMEOUT']:>9}"
+            f"{counts['TIMEOUT']:>9}{counts['FAIL']:>7}{counts['CRASH']:>7}"
         )
     total = sum(grand.values())
     print("-" * len(header))
     print(
         f"{'TOTAL':<15}{total:>7}{grand['PASS']:>7}{grand['CLEAN_REJECT']:>13}"
-        f"{grand['CRASH']:>7}{grand['TIMEOUT']:>9}"
+        f"{grand['TIMEOUT']:>9}{grand['FAIL']:>7}{grand['CRASH']:>7}"
     )
 
     anomalies = [
@@ -220,6 +238,18 @@ def print_summary(report):
             print(f"  - {d['category']}/{d['name']}: {d['overall_status']} at stage '{failing_stage}'")
             if d["note"]:
                 print(f"      note: {d['note']}")
+
+    behavioral = report.get("behavioral") or []
+    if behavioral:
+        failed = [c for c in behavioral if c["status"] != "PASS"]
+        print(f"\nBehavioral: {len(behavioral) - len(failed)} passed, {len(failed)} failed")
+        for c in failed:
+            print(f"  - {c['category']}/{c['design']} :: {c['case']} "
+                  f"[{c['validator']}] {c['status']}")
+            if c["fault_selection"]:
+                print(f"      fault: {c['fault_selection']} -> id {c['resolved_fault_id']}")
+            if c["mismatch"]:
+                print(f"      {c['mismatch']}")
     print()
 
 
@@ -270,10 +300,12 @@ def main():
     print_summary(report)
     print(f"JSON report: {report_path}")
 
-    any_crash_or_timeout = any(
-        d["overall_status"] in ("CRASH", "TIMEOUT") for d in report["designs"]
+    # FAIL joins CRASH/TIMEOUT: a behavioral mismatch in the curated corpus is
+    # a real regression, not something to observe and move past.
+    any_failure = any(
+        d["overall_status"] in ("CRASH", "TIMEOUT", "FAIL") for d in report["designs"]
     )
-    sys.exit(1 if any_crash_or_timeout else 0)
+    sys.exit(1 if any_failure else 0)
 
 
 if __name__ == "__main__":
