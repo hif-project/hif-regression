@@ -32,8 +32,17 @@ import shutil
 import sys
 from pathlib import Path
 
+import yaml
+
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from pipeline_engine import load_pipelines, load_tools, run_pipeline  # noqa: E402
+from manifest_schema import (  # noqa: E402
+    validate_behavior,
+    validate_pipelines,
+    validate_simulators,
+    validate_validators,
+)
+from pipeline_engine import load_yaml_manifest, run_pipeline  # noqa: E402
+from placeholders import ManifestError  # noqa: E402
 from toolchain_classify import DEFAULT_TIMEOUT_S  # noqa: E402
 
 
@@ -45,6 +54,21 @@ class Design:
     top: str
     pipeline: str
     note: str = ""
+    root: Path = None
+    fixtures: dict = dataclasses.field(default_factory=dict)
+    behavior: dict = dataclasses.field(default_factory=dict)
+
+    def fixture(self, fixture_name, context):
+        """Fixtures are per-design files a pipeline references by role
+        (`testbench`, `expect_sa0_y`, ...) rather than by path, so one shared
+        pipeline can serve designs whose files are named differently."""
+        path = self.fixtures.get(fixture_name)
+        if path is None:
+            raise ManifestError(
+                f"{context}: design '{self.category}/{self.name}' has no fixture "
+                f"'{fixture_name}' (declared: {sorted(self.fixtures)})"
+            )
+        return path
 
 
 def discover_designs(corpus_root: Path, suite_defaults: dict):
@@ -65,18 +89,44 @@ def discover_designs(corpus_root: Path, suite_defaults: dict):
                     top=meta.get("top", entry.stem),
                     pipeline=meta.get("pipeline", default_pipeline),
                     note=meta.get("note", ""),
+                    root=category_dir,
                 ))
             elif entry.is_dir():
                 sidecar = entry / "design.json"
                 meta = json.loads(sidecar.read_text()) if sidecar.exists() else {}
-                sources = sorted(entry.glob("*.v"))
+
+                # An explicit `sources` list is what keeps a testbench from
+                # being mistaken for a design source once a design gains
+                # behavioral fixtures. Without it, the historical glob applies.
+                explicit = meta.get("sources")
+                if explicit:
+                    sources = [entry / s for s in explicit]
+                    missing = [str(p) for p in sources if not p.exists()]
+                    if missing:
+                        raise SystemExit(f"{entry}: design.json lists missing source(s): {missing}")
+                else:
+                    sources = sorted(entry.glob("*.v"))
                 if not sources:
                     continue
+
                 top = meta.get("top")
                 if not top:
                     raise SystemExit(
                         f"{entry}: multi-file design needs design.json with a 'top' key"
                     )
+
+                fixtures = {k: entry / v for k, v in (meta.get("fixtures") or {}).items()}
+                missing_fixtures = {k: str(p) for k, p in fixtures.items() if not p.exists()}
+                if missing_fixtures:
+                    raise SystemExit(
+                        f"{entry}: design.json lists missing fixture(s): {missing_fixtures}")
+
+                behavior_path = entry / "behavior.yaml"
+                behavior = {}
+                if behavior_path.exists():
+                    behavior = yaml.safe_load(behavior_path.read_text()) or {}
+                    validate_behavior(behavior, str(behavior_path))
+
                 designs.append(Design(
                     name=entry.name,
                     category=category,
@@ -84,6 +134,9 @@ def discover_designs(corpus_root: Path, suite_defaults: dict):
                     top=top,
                     pipeline=meta.get("pipeline", default_pipeline),
                     note=meta.get("note", ""),
+                    root=entry,
+                    fixtures=fixtures,
+                    behavior=behavior,
                 ))
     return designs
 
@@ -175,6 +228,8 @@ def main():
     parser.add_argument("--corpus", default="designs", help="root directory of the curated corpus")
     parser.add_argument("--tools", default="manifests/tools.yaml")
     parser.add_argument("--pipelines", default="manifests/pipelines.yaml")
+    parser.add_argument("--simulators", default="manifests/simulators.yaml")
+    parser.add_argument("--validators", default="manifests/validators.yaml")
     parser.add_argument("--bin-dir", default=None, help="directory containing tool binaries (default: PATH)")
     parser.add_argument("--work-dir", default=None, help="scratch directory for intermediate artifacts (default: temp dir under reports/)")
     parser.add_argument("--timeout", type=int, default=DEFAULT_TIMEOUT_S, help="per-stage timeout in seconds")
@@ -183,8 +238,15 @@ def main():
     parser.add_argument("--manifest-label", default="unspecified", help="label recorded in the report (e.g. 'develop' or 'stable')")
     args = parser.parse_args()
 
-    registries = {"tools": load_tools(Path(args.tools).resolve())}
-    pipelines = load_pipelines(Path(args.pipelines).resolve())
+    registries = {
+        "tools": load_yaml_manifest(Path(args.tools).resolve()),
+        "simulators": load_yaml_manifest(Path(args.simulators).resolve()),
+        "validators": load_yaml_manifest(Path(args.validators).resolve()),
+    }
+    validate_simulators(registries["simulators"], args.simulators)
+    validate_validators(registries["validators"], args.validators)
+    pipelines = load_yaml_manifest(Path(args.pipelines).resolve())
+    validate_pipelines(pipelines, args.pipelines)
 
     corpus_root = Path(args.corpus).resolve()
     designs = discover_designs(corpus_root, pipelines.get("suite_defaults", {}))
