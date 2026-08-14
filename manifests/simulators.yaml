@@ -1,0 +1,34 @@
+# Simulator capability registry: how to compile/elaborate a design and how to
+# execute it, as data. The engine understands only declared inputs, outputs,
+# placeholders and result artifacts - never a specific simulator, filename or
+# design-under-test port.
+#
+# The compile/run split is what makes compile-once/run-many possible: an
+# instrumented Muffin design carries every fault in one netlist, so each fault
+# selection is another `run` of the same compiled artifact, never a recompile.
+# The same split is what would let a future C++ backend flow compile with g++
+# once and then execute the produced binary repeatedly.
+#
+# Binaries resolve through find_tool (--bin-dir, then PATH). This repo never
+# installs, builds, vendors or version-pins a simulator - provisioning belongs
+# to the environment (apt in CI, whatever is present locally). Nothing here
+# depends on a particular Icarus version.
+#
+# Placeholders: scalar {workdir} {name} {top} {compiled} {trace} {rundir};
+# list {sources} {defines} {params} {options} (each must be a whole token).
+
+iverilog:
+  language: verilog
+  # -g2005 is sufficient: hif2verilog renders Muffin's activation port as
+  # `input wire [31:0] muffinMutPort`, a legal Verilog-2001 port. Verified
+  # against real generated output, not assumed.
+  compile:
+    command: ["iverilog", "{options}", "{defines}", "-o", "{workdir}/sim.vvp", "-s", "{top}", "{sources}"]
+    artifact: "{workdir}/sim.vvp"
+    options: ["-g2005"]
+    define_template: "-D{value}"
+  run:
+    command: ["vvp", "{compiled}", "{params}", "+trace={trace}"]
+    artifact: "{rundir}/trace.csv"
+    param_template: "+{key}={value}"
+  timeout_s: 60
