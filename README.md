@@ -99,23 +99,28 @@ python3 scripts/report.py   # reads reports/curated-report.json + reports/extern
 
 `designs/<category>/` holds small, hand-written HDL fixtures we own and
 understand completely - not a benchmark dump. Point is controlled semantic
-coverage, not quantity. 51 designs, 13 of them carrying behavioral
+coverage, not quantity. 52 designs, 14 of them carrying behavioral
 acceptance tests:
 
 | Category | Designs | Behavioral |
 |---|---|---|
-| combinational | 18 | 5 |
+| combinational | 19 | 6 |
 | sequential | 13 | 5 |
 | parameterized | 8 | 1 |
 | hierarchical | 6 | 1 |
 | structural | 6 | 1 |
 
-Almost every design is Verilog. `combinational/vhdl_and2` is VHDL, and runs
-`vhdl_roundtrip` instead: `vhdl2hif` and `hif2vhdl` had been declared in
-`tools.yaml` from the beginning with no pipeline ever reaching them, so nothing
-here exercised the VHDL side of the toolchain - which is where hif-backend#27
-lived. A `.vhd` design has to be in directory form with an explicit `sources`
-list, since bare-file discovery globs `*.v`.
+Almost every design is Verilog. Two are VHDL, and neither runs a category
+default. `combinational/vhdl_and2` runs `vhdl_roundtrip`: `vhdl2hif` and
+`hif2vhdl` had been declared in `tools.yaml` from the beginning with no
+pipeline ever reaching them, so nothing here exercised the VHDL side of the
+toolchain - which is where hif-backend#27 lived. `combinational/vhdl_concurrent`
+runs `vhdl_to_verilog`, the cross-language direction, which neither of the
+same-language round trips reaches - and which is where hif-backend#32 lived: a
+view's `GlobalAction` was never printed, so every VHDL concurrent signal
+assignment was dropped and VHDL regenerated as a Verilog module with the right
+ports and an empty body. A `.vhd` design has to be in directory form with an
+explicit `sources` list, since bare-file discovery globs `*.v`.
 
 Each design is a plain source file (`designs/<category>/<name>.v`, or a
 folder for genuinely multi-file designs), run through a named **pipeline**
@@ -158,6 +163,14 @@ traces. It exists for designs whose contract cannot be checked by reparsing -
 regenerates as perfectly valid Verilog that responds at the wrong time
 (hif-backend#24). Keeping it separate from `muffin_behavioral` is what lets a
 failure say whether the *round trip* or the *instrumentation* broke behavior.
+
+`vhdl_to_verilog` is behavioral too, but it cannot be a comparison: there is no
+VHDL simulator in this environment, so the design's own source cannot be run.
+It simulates only the regenerated Verilog and checks it against a checked-in
+expected trace computed by hand from the VHDL. That is deliberately the weaker
+form - it pins the values but takes the corpus's word for what they should be -
+and it is the strongest check available on the one path where a VHDL-sourced
+design can be simulated at all.
 
 **See [`docs/adding-things.md`](docs/adding-things.md)** for how to add a
 transformation tool, a simulator, a validator, a pipeline, a curated design or

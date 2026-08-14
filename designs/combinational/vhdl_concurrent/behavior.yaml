@@ -1,0 +1,21 @@
+# One claim: the Verilog hif2verilog regenerates from this VHDL actually does
+# what the VHDL says.
+#
+# Unlike behavioral_roundtrip, this cannot compare against a reference run of
+# the design's own source: there is no VHDL simulator here (no ghdl, no nvc,
+# locally or in CI). The expected trace is therefore computed by hand from the
+# VHDL and checked in. That is a weaker guarantee than a source-vs-regenerated
+# comparison - it pins the values but takes the corpus's word for what they
+# should be - and it is the strongest one available on this path.
+#
+# The trace samples each input combination 1 ns and 3 ns after the change, so
+# the 2 ns delay on w is observable: with the delay dropped, the two samples
+# of each pair would be identical and the trace would not match.
+
+runs: []
+
+expectations:
+  - id: regenerated_matches_vhdl
+    use: expected_trace
+    left:     {from: simulate_regenerated, run: regenerated}
+    expected: {fixture: expect_regenerated}
