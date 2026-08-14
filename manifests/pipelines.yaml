@@ -51,6 +51,33 @@ pipelines:
       - {id: backend,  kind: tool, use: hif2vhdl}
       - {id: reparse,  kind: tool, use: vhdl2hif}
 
+  # The cross-language direction: VHDL in, Verilog out. Neither vhdl_roundtrip
+  # (VHDL -> HIF -> VHDL) nor plain_roundtrip (Verilog -> HIF -> Verilog)
+  # reaches it, and it is where hif-backend#32 lived - a view's GlobalAction,
+  # which is where vhdl2hif puts every VHDL concurrent signal assignment, was
+  # never printed, so a VHDL design regenerated as a module with the right
+  # ports and an empty body.
+  #
+  # This is also the only path on which a VHDL-sourced design can be simulated
+  # at all. There is no VHDL simulator here, so the source itself cannot be
+  # run - but its regenerated Verilog can be, which is why this pipeline ends
+  # in a single simulation checked against a stated oracle rather than in the
+  # reference-vs-regenerated comparison behavioral_roundtrip uses.
+  vhdl_to_verilog:
+    operations:
+      - {id: frontend,   kind: tool, use: vhdl2hif}
+      - {id: regenerate, kind: tool, use: hif2verilog}
+      - {id: reparse,    kind: tool, use: verilog2hif}
+
+      - id: simulate_regenerated
+        kind: simulation
+        use: iverilog
+        sources: [{from: regenerate}, {fixture: testbench}]
+        top: "{name}_tb"
+        runs: [{id: regenerated}]
+
+      - {id: validate, kind: validation, cases: {from_spec: expectations}}
+
   # Behavioral acceptance for the round trip itself, with no instrumentation
   # involved: simulate the original RTL and the regenerated RTL under the same
   # testbench and require identical traces.

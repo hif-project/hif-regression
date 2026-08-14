@@ -1,0 +1,10 @@
+{
+    "top": "vhdl_concurrent",
+    "pipeline": "vhdl_to_verilog",
+    "sources": ["vhdl_concurrent.vhd"],
+    "fixtures": {
+        "testbench": "vhdl_concurrent_tb.v",
+        "expect_regenerated": "expect_regenerated.csv"
+    },
+    "note": "Cross-language coverage for hif-backend#32, which dropped a view's GlobalAction and so lost every VHDL concurrent signal assignment - VHDL regenerated as a Verilog module with the right ports and an empty body, exit 0, reparsing cleanly. vhdl_and2 does not reach this: it goes VHDL -> HIF -> VHDL, and no Verilog-sourced design reaches the backend with a GlobalAction at all, because verilog2hif rewrites continuous assignments into processes. The oracle is a checked-in expected trace rather than a reference comparison because there is no VHDL simulator available to run the source."
+}
