@@ -1,0 +1,9 @@
+{
+    "top": "assign_delay",
+    "pipeline": "behavioral_roundtrip",
+    "sources": ["assign_delay.v"],
+    "fixtures": {
+        "testbench": "assign_delay_tb.v"
+    },
+    "note": "Timing regression for hif-backend#24, which dropped the delay on a delayed assignment. The only design here whose contract is about when outputs move rather than what they settle to, so it is the only one that needs its regenerated form simulated rather than merely reparsed. Deliberately carries no expected-trace oracle: the claim is that the regenerated design behaves like its own source, and pinning absolute times would freeze the testbench's sample points into the corpus as if they were the specification."
+}
