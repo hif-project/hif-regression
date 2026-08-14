@@ -1,0 +1,11 @@
+{
+    "top": "fsm_moore_mealy",
+    "pipeline": "muffin_behavioral",
+    "sources": ["fsm_moore_mealy.v"],
+    "fixtures": {
+        "testbench": "fsm_moore_mealy_tb.v",
+        "expect_sa1_state_bit0": "expect_sa1_state_bit0.csv",
+        "expect_sa1_moore": "expect_sa1_moore.csv"
+    },
+    "note": "State/output interaction. A fault on the state register derails the state sequence and changes the Moore and Mealy outputs differently; a fault on an output leaves the state sequence intact. The pair distinguishes corrupting the machine from corrupting only what it reports."
+}

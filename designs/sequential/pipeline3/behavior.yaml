@@ -1,0 +1,47 @@
+# Three registers, one assignment each, so every stage is its own unambiguous
+# fault location.
+#
+# The oracle below is derived by forcing bit 0 of s1 every cycle
+# (s1 <= (rst ? 0 : din) | 1) and then propagating that through s2 and dout,
+# which each lag by one further cycle. The visible consequence at dout is
+# therefore shifted two cycles from the injection point:
+#
+#   s1   : 1 5 b 3 1 1 1
+#   s2   : 0 1 5 b 3 1 1
+#   dout : 0 0 1 5 b 3 1     (fault-free dout: 0 0 0 5 a 3 0)
+
+runs:
+  - {id: golden, params: {mut: 0}}
+
+  - id: sa1_s1_bit0
+    params:
+      mut: {from: enumerate, array: faults, where: {signal: s1, bit: 0, type: stuck-at-1}, take: id}
+
+  - id: sa0_dout_bit2
+    params:
+      mut: {from: enumerate, array: faults, where: {signal: dout, bit: 2, type: stuck-at-0}, take: id}
+
+expectations:
+  - id: golden_matches_rtl
+    use: trace_equal
+    left:  {from: simulate_reference,    run: reference}
+    right: {from: simulate_instrumented, run: golden}
+
+  # The substantive check: a fault on an internal stage reaching the output
+  # with the correct two-cycle delay and the correct values.
+  - id: sa1_s1_bit0_expected_trace
+    use: expected_trace
+    left:     {from: simulate_instrumented, run: sa1_s1_bit0}
+    expected: {fixture: expect_sa1_s1_bit0}
+
+  - id: sa1_s1_bit0_detected
+    use: trace_differs
+    left:  {from: simulate_instrumented, run: sa1_s1_bit0}
+    right: {from: simulate_reference,    run: reference}
+
+  # A fault on the output register itself, for contrast with the propagated
+  # case above - dout carries 5 and a, both of which have bit 2 set.
+  - id: sa0_dout_bit2_detected
+    use: trace_differs
+    left:  {from: simulate_instrumented, run: sa0_dout_bit2}
+    right: {from: simulate_reference,    run: reference}

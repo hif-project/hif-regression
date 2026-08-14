@@ -1,0 +1,11 @@
+{
+    "top": "counter_load",
+    "pipeline": "muffin_behavioral",
+    "sources": ["counter_load.v"],
+    "fixtures": {
+        "testbench": "counter_load_tb.v",
+        "expect_sa0_count_bit0": "expect_sa0_count_bit0.csv",
+        "expect_sa1_count_bit3": "expect_sa1_count_bit3.csv"
+    },
+    "note": "Multi-bit sequential fault whose effect compounds through the counter's own feedback: because the faulted value is what feeds the next increment, a single stuck bit changes the entire subsequent count sequence rather than one cycle."
+}
