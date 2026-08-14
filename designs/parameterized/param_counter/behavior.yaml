@@ -1,24 +1,44 @@
-# Parameterized width, deliberately asserted narrowly.
+# Parameterized width, with exact per-bit oracles.
 #
-# For a signal whose span is a parameter expression, Muffin enumerates a single
-# bit rather than WIDTH bits, and the 1-bit injection path then replaces the
-# whole register with a literal instead of forcing one bit of it. That looks
-# wrong, and it is reported upstream rather than encoded here:
-# https://github.com/hif-project/hif-muffin/issues/9
+# count is 4 bits wide (WIDTH's default) with a single fault location, so each
+# bit carries its own SA0/SA1 pair and the bitwise instrumentation applies:
 #
-# So this fixture asserts only what is true regardless of that question:
-#   - inactive instrumentation must reproduce the original RTL exactly;
-#   - the fault, whatever its width, must be observable.
-# There is deliberately no expected_trace oracle. Adding one would record the
-# current behavior as the specification, which is exactly the mistake this
-# corpus exists to avoid.
+#   SA0 on bit b  ->  next_count = (rst ? 0 : en ? count+1 : count) & ~(1<<b)
+#   SA1 on bit b  ->  next_count = (rst ? 0 : en ? count+1 : count) |  (1<<b)
+#
+# The forced value is what gets stored and the stored value is what the next
+# increment reads, so these oracles are cumulative rather than a per-cycle mask
+# over the fault-free trace. That feedback is what makes them worth pinning.
+#
+# Until hif-muffin#9 was fixed, none of this was expressible here: a
+# parameterized-width signal enumerated as one bit wide and the injected value
+# replaced the whole register, so the only honest assertions were golden
+# equivalence and detectability. The fault ids below are still resolved by
+# {signal, bit, type} rather than hardcoded, so they stay correct if
+# enumeration order ever changes.
 
 runs:
   - {id: golden, params: {mut: 0}}
 
-  - id: sa1_count
+  - id: sa0_count_bit0
+    params:
+      mut: {from: enumerate, array: faults, where: {signal: count, bit: 0, type: stuck-at-0}, take: id}
+
+  - id: sa1_count_bit0
     params:
       mut: {from: enumerate, array: faults, where: {signal: count, bit: 0, type: stuck-at-1}, take: id}
+
+  - id: sa0_count_bit2
+    params:
+      mut: {from: enumerate, array: faults, where: {signal: count, bit: 2, type: stuck-at-0}, take: id}
+
+  - id: sa0_count_bit3
+    params:
+      mut: {from: enumerate, array: faults, where: {signal: count, bit: 3, type: stuck-at-0}, take: id}
+
+  - id: sa1_count_bit3
+    params:
+      mut: {from: enumerate, array: faults, where: {signal: count, bit: 3, type: stuck-at-1}, take: id}
 
 expectations:
   - id: golden_matches_rtl
@@ -26,7 +46,48 @@ expectations:
     left:  {from: simulate_reference,    run: reference}
     right: {from: simulate_instrumented, run: golden}
 
-  - id: sa1_count_detected
+  # Bit 0 held low: the counter can never hold an odd value, and since every
+  # increment lands on one it is pinned at 0 for the whole run.
+  - id: sa0_count_bit0_expected_trace
+    use: expected_trace
+    left:     {from: simulate_instrumented, run: sa0_count_bit0}
+    expected: {fixture: expect_sa0_count_bit0}
+
+  # Bit 0 held high: every stored value is odd, so the count runs 1,3,5,7...
+  # gaining one per enabled cycle rather than tracking the reference, and wraps
+  # to d within the run.
+  - id: sa1_count_bit0_expected_trace
+    use: expected_trace
+    left:     {from: simulate_instrumented, run: sa1_count_bit0}
+    expected: {fixture: expect_sa1_count_bit0}
+
+  # Bit 2 held low: indistinguishable from golden until the count first needs
+  # bit 2, then it drops 4 and restarts from 0 -- the clearest demonstration
+  # that the fault forces one bit and leaves the rest of the vector alone.
+  - id: sa0_count_bit2_expected_trace
+    use: expected_trace
+    left:     {from: simulate_instrumented, run: sa0_count_bit2}
+    expected: {fixture: expect_sa0_count_bit2}
+
+  # Bit 3 held high: a constant +8 offset that leaves the low bits counting
+  # normally, wrapping to e by the end.
+  - id: sa1_count_bit3_expected_trace
+    use: expected_trace
+    left:     {from: simulate_instrumented, run: sa1_count_bit3}
+    expected: {fixture: expect_sa1_count_bit3}
+
+  # Bit 3 held low is NOT detectable under this stimulus: the count never
+  # reaches 8, so the fault-free design leaves bit 3 at 0 anyway and forcing it
+  # low changes nothing. Asserted as an equality against the reference rather
+  # than left out, because "this fault is real but this stimulus does not
+  # sensitize it" is a property worth pinning -- it is exactly the case a
+  # detectability-only oracle would silently miss.
+  - id: sa0_count_bit3_not_detected
+    use: trace_equal
+    left:  {from: simulate_instrumented, run: sa0_count_bit3}
+    right: {from: simulate_reference,    run: reference}
+
+  - id: sa1_count_bit0_detected
     use: trace_differs
-    left:  {from: simulate_instrumented, run: sa1_count}
+    left:  {from: simulate_instrumented, run: sa1_count_bit0}
     right: {from: simulate_reference,    run: reference}
