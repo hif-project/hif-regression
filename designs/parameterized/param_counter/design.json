@@ -1,0 +1,9 @@
+{
+    "top": "param_counter",
+    "pipeline": "muffin_behavioral",
+    "sources": ["param_counter.v"],
+    "fixtures": {
+        "testbench": "param_counter_tb.v"
+    },
+    "note": "Behavioral coverage for a parameterized-width register. Deliberately asserts only golden equivalence and fault detectability, with no expected-trace oracle: Muffin currently enumerates a parameterized-width signal as one bit wide, so writing down the values it produces would freeze that behavior into the corpus as if it were correct."
+}
