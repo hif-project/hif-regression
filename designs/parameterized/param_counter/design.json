@@ -3,7 +3,11 @@
     "pipeline": "muffin_behavioral",
     "sources": ["param_counter.v"],
     "fixtures": {
-        "testbench": "param_counter_tb.v"
+        "testbench": "param_counter_tb.v",
+        "expect_sa0_count_bit0": "expect_sa0_count_bit0.csv",
+        "expect_sa1_count_bit0": "expect_sa1_count_bit0.csv",
+        "expect_sa0_count_bit2": "expect_sa0_count_bit2.csv",
+        "expect_sa1_count_bit3": "expect_sa1_count_bit3.csv"
     },
-    "note": "Behavioral coverage for a parameterized-width register. Deliberately asserts only golden equivalence and fault detectability, with no expected-trace oracle: Muffin currently enumerates a parameterized-width signal as one bit wide, so writing down the values it produces would freeze that behavior into the corpus as if it were correct."
+    "note": "Behavioral coverage for a parameterized-width register, with exact per-bit expected-trace oracles. Also pins one fault (bit 3 stuck-at-0) that this stimulus provably does not sensitize, which a detectability-only oracle would miss."
 }
