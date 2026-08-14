@@ -88,7 +88,7 @@ def discover_designs(corpus_root: Path, suite_defaults: dict):
     return designs
 
 
-def run_design(design: Design, pipelines: dict, tools: dict, bin_dir, work_root: Path, timeout_s: int):
+def run_design(design: Design, pipelines: dict, registries: dict, bin_dir, work_root: Path, timeout_s: int):
     if not design.pipeline:
         raise SystemExit(
             f"{design.category}/{design.name}: no pipeline resolved (no sidecar "
@@ -96,9 +96,15 @@ def run_design(design: Design, pipelines: dict, tools: dict, bin_dir, work_root:
         )
     work_dir = work_root / design.category / design.name
     result = run_pipeline(
-        design.pipeline, pipelines, tools, bin_dir, design.sources, work_dir, design.top, timeout_s
+        design.pipeline, pipelines, registries, bin_dir, design.sources, work_dir,
+        design.top, timeout_s, design,
     )
-    return {"design": design, "stages": result["stages"], "overall_status": result["overall_status"]}
+    return {
+        "design": design,
+        "stages": result["stages"],
+        "behavioral": result["behavioral"],
+        "overall_status": result["overall_status"],
+    }
 
 
 def build_report(results, manifest_label):
@@ -177,7 +183,7 @@ def main():
     parser.add_argument("--manifest-label", default="unspecified", help="label recorded in the report (e.g. 'develop' or 'stable')")
     args = parser.parse_args()
 
-    tools = load_tools(Path(args.tools).resolve())
+    registries = {"tools": load_tools(Path(args.tools).resolve())}
     pipelines = load_pipelines(Path(args.pipelines).resolve())
 
     corpus_root = Path(args.corpus).resolve()
@@ -192,7 +198,7 @@ def main():
         shutil.rmtree(work_root)
     work_root.mkdir(parents=True, exist_ok=True)
 
-    results = [run_design(d, pipelines, tools, args.bin_dir, work_root, args.timeout) for d in designs]
+    results = [run_design(d, pipelines, registries, args.bin_dir, work_root, args.timeout) for d in designs]
     report = build_report(results, args.manifest_label)
 
     report_path = Path(args.report)
