@@ -1,0 +1,45 @@
+# Three separate concerns, deliberately not mixed:
+#   stimulus        -> and2_tb.v (shared by both compiles)
+#   fault selection -> runs, resolved from faults.json by attribute
+#   expected result -> expectations
+#
+# Fault ids are assigned in enumeration order and move when a design's
+# assignments change, so no numeric id is written here.
+
+runs:
+  - {id: golden, params: {mut: 0}}
+
+  - id: sa0_y
+    params:
+      mut: {from: enumerate, array: faults, where: {signal: y, bit: 0, type: stuck-at-0}, take: id}
+
+  - id: sa1_y
+    params:
+      mut: {from: enumerate, array: faults, where: {signal: y, bit: 0, type: stuck-at-1}, take: id}
+
+expectations:
+  # Mandatory: instrumentation must be behaviorally transparent when inactive.
+  # If this fails, Muffin is behaviorally wrong even though its output parses.
+  - id: golden_matches_rtl
+    use: trace_equal
+    left:  {from: simulate_reference,    run: reference}
+    right: {from: simulate_instrumented, run: golden}
+
+  # y is 1 bit wide, so the injected value is a literal 0 - regardless of a & b.
+  - id: sa0_y_expected_trace
+    use: expected_trace
+    left:     {from: simulate_instrumented, run: sa0_y}
+    expected: {fixture: expect_sa0_y}
+
+  # ... and a literal 1 for SA1.
+  - id: sa1_y_expected_trace
+    use: expected_trace
+    left:     {from: simulate_instrumented, run: sa1_y}
+    expected: {fixture: expect_sa1_y}
+
+  # DETECTED: SA0 changes observable behavior under this stimulus, because the
+  # a=b=1 vector drives y high in the fault-free design.
+  - id: sa0_y_detected
+    use: trace_differs
+    left:  {from: simulate_instrumented, run: sa0_y}
+    right: {from: simulate_reference,    run: reference}

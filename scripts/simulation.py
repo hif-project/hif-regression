@@ -105,11 +105,14 @@ def run_simulation(op, registries, bin_dir, artifacts, workdir, name, timeout_s,
             artifact_ok = compiled.exists()
         status = classify(result, artifact_ok)
         record["compile"] = {"status": status, "phase": "compile", **trim_result(result)}
-        record["phase"] = "compile"
         if status != "PASS":
+            # `phase` names where execution stopped, which is what makes a
+            # failure attributable to compilation rather than to execution.
+            record["phase"] = "compile"
             record["status"] = status
             return status, record
 
+    record["phase"] = "run"
     run_phase = sim["run"]
     worst = "PASS"
     for run in op["_runs"]:
@@ -146,7 +149,6 @@ def run_simulation(op, registries, bin_dir, artifacts, workdir, name, timeout_s,
             "selections": selections, "trace": str(trace), **trim_result(result),
         }
         if status != "PASS":
-            record["phase"] = "run"
             worst = status
 
     record["status"] = worst
