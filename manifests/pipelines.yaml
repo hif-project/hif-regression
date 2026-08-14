@@ -41,6 +41,16 @@ pipelines:
       - {id: muffin_list_faults, kind: tool, use: muffin_list_faults, inputs: [frontend]}
       - {id: muffin_instrument,  kind: tool, use: muffin_instrument,  inputs: [frontend]}
 
+  # The VHDL path. Same three steps as plain_roundtrip, different frontend and
+  # backend - which is the point: tools.yaml has declared vhdl2hif and hif2vhdl
+  # since the beginning and no pipeline ever ran them, so nothing in this corpus
+  # exercised the VHDL side of the toolchain at all. hif-backend#27 lived there.
+  vhdl_roundtrip:
+    operations:
+      - {id: frontend, kind: tool, use: vhdl2hif}
+      - {id: backend,  kind: tool, use: hif2vhdl}
+      - {id: reparse,  kind: tool, use: vhdl2hif}
+
   # Behavioral acceptance for the round trip itself, with no instrumentation
   # involved: simulate the original RTL and the regenerated RTL under the same
   # testbench and require identical traces.
