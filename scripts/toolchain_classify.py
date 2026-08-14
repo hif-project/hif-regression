@@ -16,7 +16,11 @@ import time
 from pathlib import Path
 
 DEFAULT_TIMEOUT_S = 60
-STATUS_SEVERITY = {"PASS": 0, "CLEAN_REJECT": 1, "TIMEOUT": 2, "CRASH": 3}
+# FAIL is produced by validation only (see validators.py) - a tool that exits
+# nonzero is CLEAN_REJECT or CRASH, never FAIL. Ordered above TIMEOUT because a
+# behavioral mismatch is a harder result than "didn't finish", and below CRASH
+# because a crash means we learned nothing at all.
+STATUS_SEVERITY = {"PASS": 0, "CLEAN_REJECT": 1, "TIMEOUT": 2, "FAIL": 3, "CRASH": 4}
 MAX_CAPTURED_OUTPUT = 4000  # chars kept per stream in a JSON report
 
 # Minimal, explicit, reviewable. Add to this list only after confirming a new

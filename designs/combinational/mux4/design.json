@@ -1,0 +1,11 @@
+{
+    "top": "mux4",
+    "pipeline": "muffin_behavioral",
+    "sources": ["mux4.v"],
+    "fixtures": {
+        "testbench": "mux4_tb.v",
+        "expect_sa0_y": "expect_sa0_y.csv",
+        "expect_sa1_y": "expect_sa1_y.csv"
+    },
+    "note": "Single fault location driven through every select value, with two complementary data patterns so both SA0 and SA1 are observable."
+}

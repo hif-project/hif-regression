@@ -32,9 +32,23 @@ import shutil
 import sys
 from pathlib import Path
 
+import yaml
+
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from pipeline_engine import load_pipelines, load_tools, run_pipeline  # noqa: E402
-from toolchain_classify import DEFAULT_TIMEOUT_S  # noqa: E402
+from manifest_schema import (  # noqa: E402
+    validate_behavior,
+    validate_pipelines,
+    validate_simulators,
+    validate_validators,
+)
+from pipeline_engine import load_yaml_manifest, run_pipeline  # noqa: E402
+from placeholders import ManifestError  # noqa: E402
+from toolchain_classify import DEFAULT_TIMEOUT_S, STATUS_SEVERITY  # noqa: E402
+
+# Report columns, ordered by severity so the table reads left-to-right from
+# "fine" to "worst". Derived from STATUS_SEVERITY rather than restated, so a
+# future status cannot be added to the classifier and silently omitted here.
+STATUS_COLUMNS = sorted(STATUS_SEVERITY, key=lambda s: STATUS_SEVERITY[s])
 
 
 @dataclasses.dataclass
@@ -45,6 +59,21 @@ class Design:
     top: str
     pipeline: str
     note: str = ""
+    root: Path = None
+    fixtures: dict = dataclasses.field(default_factory=dict)
+    behavior: dict = dataclasses.field(default_factory=dict)
+
+    def fixture(self, fixture_name, context):
+        """Fixtures are per-design files a pipeline references by role
+        (`testbench`, `expect_sa0_y`, ...) rather than by path, so one shared
+        pipeline can serve designs whose files are named differently."""
+        path = self.fixtures.get(fixture_name)
+        if path is None:
+            raise ManifestError(
+                f"{context}: design '{self.category}/{self.name}' has no fixture "
+                f"'{fixture_name}' (declared: {sorted(self.fixtures)})"
+            )
+        return path
 
 
 def discover_designs(corpus_root: Path, suite_defaults: dict):
@@ -65,18 +94,44 @@ def discover_designs(corpus_root: Path, suite_defaults: dict):
                     top=meta.get("top", entry.stem),
                     pipeline=meta.get("pipeline", default_pipeline),
                     note=meta.get("note", ""),
+                    root=category_dir,
                 ))
             elif entry.is_dir():
                 sidecar = entry / "design.json"
                 meta = json.loads(sidecar.read_text()) if sidecar.exists() else {}
-                sources = sorted(entry.glob("*.v"))
+
+                # An explicit `sources` list is what keeps a testbench from
+                # being mistaken for a design source once a design gains
+                # behavioral fixtures. Without it, the historical glob applies.
+                explicit = meta.get("sources")
+                if explicit:
+                    sources = [entry / s for s in explicit]
+                    missing = [str(p) for p in sources if not p.exists()]
+                    if missing:
+                        raise SystemExit(f"{entry}: design.json lists missing source(s): {missing}")
+                else:
+                    sources = sorted(entry.glob("*.v"))
                 if not sources:
                     continue
+
                 top = meta.get("top")
                 if not top:
                     raise SystemExit(
                         f"{entry}: multi-file design needs design.json with a 'top' key"
                     )
+
+                fixtures = {k: entry / v for k, v in (meta.get("fixtures") or {}).items()}
+                missing_fixtures = {k: str(p) for k, p in fixtures.items() if not p.exists()}
+                if missing_fixtures:
+                    raise SystemExit(
+                        f"{entry}: design.json lists missing fixture(s): {missing_fixtures}")
+
+                behavior_path = entry / "behavior.yaml"
+                behavior = {}
+                if behavior_path.exists():
+                    behavior = yaml.safe_load(behavior_path.read_text()) or {}
+                    validate_behavior(behavior, str(behavior_path))
+
                 designs.append(Design(
                     name=entry.name,
                     category=category,
@@ -84,11 +139,14 @@ def discover_designs(corpus_root: Path, suite_defaults: dict):
                     top=top,
                     pipeline=meta.get("pipeline", default_pipeline),
                     note=meta.get("note", ""),
+                    root=entry,
+                    fixtures=fixtures,
+                    behavior=behavior,
                 ))
     return designs
 
 
-def run_design(design: Design, pipelines: dict, tools: dict, bin_dir, work_root: Path, timeout_s: int):
+def run_design(design: Design, pipelines: dict, registries: dict, bin_dir, work_root: Path, timeout_s: int):
     if not design.pipeline:
         raise SystemExit(
             f"{design.category}/{design.name}: no pipeline resolved (no sidecar "
@@ -96,18 +154,35 @@ def run_design(design: Design, pipelines: dict, tools: dict, bin_dir, work_root:
         )
     work_dir = work_root / design.category / design.name
     result = run_pipeline(
-        design.pipeline, pipelines, tools, bin_dir, design.sources, work_dir, design.top, timeout_s
+        design.pipeline, pipelines, registries, bin_dir, design.sources, work_dir,
+        design.top, timeout_s, design,
     )
-    return {"design": design, "stages": result["stages"], "overall_status": result["overall_status"]}
+    return {
+        "design": design,
+        "stages": result["stages"],
+        "behavioral": result["behavioral"],
+        "overall_status": result["overall_status"],
+    }
 
 
 def build_report(results, manifest_label):
     designs_out = []
+    behavioral_out = []
     counts = {}
     for res in results:
         design = res["design"]
         status = res["overall_status"]
-        counts.setdefault(design.category, {"PASS": 0, "CLEAN_REJECT": 0, "CRASH": 0, "TIMEOUT": 0})
+        for case in res.get("behavioral", []):
+            behavioral_out.append({
+                "design": design.name, "category": design.category,
+                "pipeline": design.pipeline, "case": case["id"],
+                "validator": case["validator"], "impl": case["impl"],
+                "status": case["status"], "mismatch": case["mismatch"],
+                "fault_selection": case.get("fault_selection"),
+                "resolved_fault_id": case.get("resolved_fault_id"),
+                "left": case["left"], "right": case["right"],
+            })
+        counts.setdefault(design.category, {k: 0 for k in STATUS_COLUMNS})
         counts[design.category][status] += 1
         designs_out.append({
             "name": design.name,
@@ -124,28 +199,30 @@ def build_report(results, manifest_label):
         "corpus": "internal",
         "summary": counts,
         "designs": designs_out,
+        "behavioral": behavioral_out,
     }
 
 
 def print_summary(report):
     print(f"\n== hif-regression: curated corpus ({report['manifest']}) ==\n")
-    header = f"{'Category':<15}{'Total':>7}{'Pass':>7}{'CleanReject':>13}{'Crash':>7}{'Timeout':>9}"
+    header = (f"{'Category':<15}{'Total':>7}{'Pass':>7}{'CleanReject':>13}"
+              f"{'Timeout':>9}{'Fail':>7}{'Crash':>7}")
     print(header)
     print("-" * len(header))
-    grand = {"PASS": 0, "CLEAN_REJECT": 0, "CRASH": 0, "TIMEOUT": 0}
+    grand = {k: 0 for k in STATUS_COLUMNS}
     for category, counts in sorted(report["summary"].items()):
         total = sum(counts.values())
         for k in grand:
-            grand[k] += counts[k]
+            grand[k] += counts.get(k, 0)
         print(
             f"{category:<15}{total:>7}{counts['PASS']:>7}{counts['CLEAN_REJECT']:>13}"
-            f"{counts['CRASH']:>7}{counts['TIMEOUT']:>9}"
+            f"{counts['TIMEOUT']:>9}{counts['FAIL']:>7}{counts['CRASH']:>7}"
         )
     total = sum(grand.values())
     print("-" * len(header))
     print(
         f"{'TOTAL':<15}{total:>7}{grand['PASS']:>7}{grand['CLEAN_REJECT']:>13}"
-        f"{grand['CRASH']:>7}{grand['TIMEOUT']:>9}"
+        f"{grand['TIMEOUT']:>9}{grand['FAIL']:>7}{grand['CRASH']:>7}"
     )
 
     anomalies = [
@@ -161,6 +238,18 @@ def print_summary(report):
             print(f"  - {d['category']}/{d['name']}: {d['overall_status']} at stage '{failing_stage}'")
             if d["note"]:
                 print(f"      note: {d['note']}")
+
+    behavioral = report.get("behavioral") or []
+    if behavioral:
+        failed = [c for c in behavioral if c["status"] != "PASS"]
+        print(f"\nBehavioral: {len(behavioral) - len(failed)} passed, {len(failed)} failed")
+        for c in failed:
+            print(f"  - {c['category']}/{c['design']} :: {c['case']} "
+                  f"[{c['validator']}] {c['status']}")
+            if c["fault_selection"]:
+                print(f"      fault: {c['fault_selection']} -> id {c['resolved_fault_id']}")
+            if c["mismatch"]:
+                print(f"      {c['mismatch']}")
     print()
 
 
@@ -169,6 +258,8 @@ def main():
     parser.add_argument("--corpus", default="designs", help="root directory of the curated corpus")
     parser.add_argument("--tools", default="manifests/tools.yaml")
     parser.add_argument("--pipelines", default="manifests/pipelines.yaml")
+    parser.add_argument("--simulators", default="manifests/simulators.yaml")
+    parser.add_argument("--validators", default="manifests/validators.yaml")
     parser.add_argument("--bin-dir", default=None, help="directory containing tool binaries (default: PATH)")
     parser.add_argument("--work-dir", default=None, help="scratch directory for intermediate artifacts (default: temp dir under reports/)")
     parser.add_argument("--timeout", type=int, default=DEFAULT_TIMEOUT_S, help="per-stage timeout in seconds")
@@ -177,8 +268,15 @@ def main():
     parser.add_argument("--manifest-label", default="unspecified", help="label recorded in the report (e.g. 'develop' or 'stable')")
     args = parser.parse_args()
 
-    tools = load_tools(Path(args.tools).resolve())
-    pipelines = load_pipelines(Path(args.pipelines).resolve())
+    registries = {
+        "tools": load_yaml_manifest(Path(args.tools).resolve()),
+        "simulators": load_yaml_manifest(Path(args.simulators).resolve()),
+        "validators": load_yaml_manifest(Path(args.validators).resolve()),
+    }
+    validate_simulators(registries["simulators"], args.simulators)
+    validate_validators(registries["validators"], args.validators)
+    pipelines = load_yaml_manifest(Path(args.pipelines).resolve())
+    validate_pipelines(pipelines, args.pipelines)
 
     corpus_root = Path(args.corpus).resolve()
     designs = discover_designs(corpus_root, pipelines.get("suite_defaults", {}))
@@ -192,7 +290,7 @@ def main():
         shutil.rmtree(work_root)
     work_root.mkdir(parents=True, exist_ok=True)
 
-    results = [run_design(d, pipelines, tools, args.bin_dir, work_root, args.timeout) for d in designs]
+    results = [run_design(d, pipelines, registries, args.bin_dir, work_root, args.timeout) for d in designs]
     report = build_report(results, args.manifest_label)
 
     report_path = Path(args.report)
@@ -202,10 +300,12 @@ def main():
     print_summary(report)
     print(f"JSON report: {report_path}")
 
-    any_crash_or_timeout = any(
-        d["overall_status"] in ("CRASH", "TIMEOUT") for d in report["designs"]
+    # FAIL joins CRASH/TIMEOUT: a behavioral mismatch in the curated corpus is
+    # a real regression, not something to observe and move past.
+    any_failure = any(
+        d["overall_status"] in ("CRASH", "TIMEOUT", "FAIL") for d in report["designs"]
     )
-    sys.exit(1 if any_crash_or_timeout else 0)
+    sys.exit(1 if any_failure else 0)
 
 
 if __name__ == "__main__":

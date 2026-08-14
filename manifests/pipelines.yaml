@@ -1,35 +1,76 @@
-# Named, reusable tool chains, built from manifests/tools.yaml. A design
-# selects one by name (sidecar "pipeline" key) or inherits its category's
-# suite_defaults entry - most designs never need to say anything.
+# Named, ordered operation sequences. A design selects one by name (sidecar
+# "pipeline" key) or inherits its category's suite_defaults entry - most
+# designs never need to say anything.
 #
-# Each step needs its own id (not just a tool name) because a tool can
-# legitimately appear more than once in one pipeline - verilog2hif already
-# does, as both the initial parse and the final reparse. Step ids double as
-# the stage keys in the JSON report.
+# Each operation has:
+#   id    - unique within the pipeline, independent of the implementation
+#           name (a tool can legitimately appear more than once - verilog2hif
+#           does, as both the initial parse and the final reparse). Doubles as
+#           the stage key in the JSON report.
+#   kind  - tool | simulation | validation. These are three distinct concepts:
+#           a tool consumes and produces artifacts, a simulation executes one
+#           and produces result traces, a validation asserts something about
+#           those results. None of them is disguised as another.
+#   use   - the entry to use from the registry for that kind (tools.yaml,
+#           simulators.yaml, validators.yaml).
 #
-# `probes` run after the full main step sequence succeeds (not interleaved
-# mid-sequence - matches how this repo's Muffin ecosystem check has always
-# worked: list-faults and instrument both examine the frontend's output,
-# neither one feeds into backend regeneration). Each probe attaches to a
-# named step's artifact via `after`, executes in listed order, and a
-# probe failure stops any probes still to come - it does not affect main
-# steps, which have already finished by the time probes run.
+# Operations execute strictly top to bottom, stopping at the first non-PASS.
+# There is no dependency resolution, no topological sort and no parallelism.
+# An operation with no explicit `inputs` consumes its predecessor's artifact,
+# which keeps linear pipelines terse; an explicit `inputs: [<id>]` names an
+# earlier operation, which is how a step reads something other than what came
+# immediately before it.
 
 pipelines:
   plain_roundtrip:
-    steps:
-      - {id: frontend, tool: verilog2hif}
-      - {id: backend, tool: hif2verilog}
-      - {id: reparse, tool: verilog2hif}
+    operations:
+      - {id: frontend, kind: tool, use: verilog2hif}
+      - {id: backend,  kind: tool, use: hif2verilog}
+      - {id: reparse,  kind: tool, use: verilog2hif}
 
   muffin_roundtrip:
-    steps:
-      - {id: frontend, tool: verilog2hif}
-      - {id: backend, tool: hif2verilog}
-      - {id: reparse, tool: verilog2hif}
-    probes:
-      - {after: frontend, tool: muffin_list_faults}
-      - {after: frontend, tool: muffin_instrument}
+    operations:
+      - {id: frontend, kind: tool, use: verilog2hif}
+      - {id: backend,  kind: tool, use: hif2verilog}
+      - {id: reparse,  kind: tool, use: verilog2hif}
+      # Both of these examine the frontend's output rather than the previous
+      # operation's - neither feeds into backend regeneration. That used to be
+      # expressed by a separate `probes` section; it is now just an explicit
+      # input reference. Ids and order are unchanged, so report stage keys
+      # stayed stable across the migration.
+      - {id: muffin_list_faults, kind: tool, use: muffin_list_faults, inputs: [frontend]}
+      - {id: muffin_instrument,  kind: tool, use: muffin_instrument,  inputs: [frontend]}
+
+  # Behavioral acceptance: prove by simulation that instrumentation preserves
+  # behavior when inactive, and changes it exactly as predicted when a fault is
+  # selected. Structural coverage comes along for free - the first four
+  # operations are the same transformation chain the other pipelines run.
+  muffin_behavioral:
+    operations:
+      - {id: frontend,   kind: tool, use: verilog2hif}
+      - {id: enumerate,  kind: tool, use: muffin_list_faults, inputs: [frontend]}
+      - {id: instrument, kind: tool, use: muffin_instrument,  inputs: [frontend]}
+      - {id: regenerate, kind: tool, use: hif2verilog,        inputs: [instrument]}
+
+      # Reference: the original hand-written RTL, untouched by any HIF tool.
+      - id: simulate_reference
+        kind: simulation
+        use: iverilog
+        sources: [{design: sources}, {fixture: testbench}]
+        top: "{name}_tb"
+        runs: [{id: reference}]
+
+      # One compile of the instrumented netlist; every fault selection is
+      # another run of it, never a recompile.
+      - id: simulate_instrumented
+        kind: simulation
+        use: iverilog
+        sources: [{from: regenerate}, {fixture: testbench}]
+        top: "{name}_tb"
+        defines: [MUFFIN_MUT]
+        runs: {from_spec: runs}
+
+      - {id: validate, kind: validation, cases: {from_spec: expectations}}
 
 suite_defaults:
   combinational: plain_roundtrip

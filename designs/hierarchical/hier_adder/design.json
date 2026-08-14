@@ -1,0 +1,4 @@
+{
+    "top": "hier_adder",
+    "sources": ["hier_adder.v", "half_adder.v"]
+}

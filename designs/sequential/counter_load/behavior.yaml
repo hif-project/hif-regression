@@ -1,0 +1,44 @@
+# count is 4 bits wide with a single fault location, so the bitwise
+# instrumentation applies:
+#   SA0 on bit 0  ->  next_count = (rst ? 0 : load ? din : count+1) & ~1
+#   SA1 on bit 3  ->  next_count = (rst ? 0 : load ? din : count+1) |  8
+#
+# The forced value is what gets stored, and the stored value is what the next
+# increment reads - so the two oracles below are cumulative, not per-cycle
+# masks of the fault-free trace. That feedback is the point of this fixture.
+
+runs:
+  - {id: golden, params: {mut: 0}}
+
+  - id: sa0_count_bit0
+    params:
+      mut: {from: enumerate, array: faults, where: {signal: count, bit: 0, type: stuck-at-0}, take: id}
+
+  - id: sa1_count_bit3
+    params:
+      mut: {from: enumerate, array: faults, where: {signal: count, bit: 3, type: stuck-at-1}, take: id}
+
+expectations:
+  - id: golden_matches_rtl
+    use: trace_equal
+    left:  {from: simulate_reference,    run: reference}
+    right: {from: simulate_instrumented, run: golden}
+
+  # Bit 0 held low: the counter can never leave an even value, so after the
+  # load of 9 it sticks at 8 instead of climbing.
+  - id: sa0_count_bit0_expected_trace
+    use: expected_trace
+    left:     {from: simulate_instrumented, run: sa0_count_bit0}
+    expected: {fixture: expect_sa0_count_bit0}
+
+  # Bit 3 held high: the count is offset from the start and the load of 9 is
+  # unaffected, since 9 already has bit 3 set.
+  - id: sa1_count_bit3_expected_trace
+    use: expected_trace
+    left:     {from: simulate_instrumented, run: sa1_count_bit3}
+    expected: {fixture: expect_sa1_count_bit3}
+
+  - id: sa0_count_bit0_detected
+    use: trace_differs
+    left:  {from: simulate_instrumented, run: sa0_count_bit0}
+    right: {from: simulate_reference,    run: reference}

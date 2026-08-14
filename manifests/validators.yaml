@@ -1,0 +1,29 @@
+# Validator registry: named assertions over result artifacts.
+#
+# A validator consumes results and makes one claim. It never runs anything -
+# executing a simulator is simulation's job. Keeping the two apart is what lets
+# a failed behavioral test say whether the design misbehaved or the expectation
+# was wrong, instead of collapsing both into one opaque "test failed".
+#
+# `impl` selects a generic comparator in scripts/validators.py. Adding a
+# validator is normally a line here; a new impl is written only when the
+# comparison itself is genuinely new. Nothing here is specific to Muffin, to
+# faults, or to Verilog - `trace_equal` would compare an RTL trace against a
+# C++ trace unchanged.
+
+# Two results must be identical. Used for golden-instrumentation equivalence
+# (instrumented-inactive must reproduce the original RTL exactly), and for
+# stating that a fault is NOT observable under a given stimulus.
+trace_equal:
+  impl: artifact_equal
+
+# Two results must differ. States that a fault IS observable under a given
+# stimulus - deliberately weaker than expected_trace, so it is used to assert
+# detectability, never to stand in for knowing the expected values.
+trace_differs:
+  impl: artifact_differs
+
+# A result must equal a checked-in oracle. This is the strong form: it says
+# what the output should actually be, not merely that it changed.
+expected_trace:
+  impl: artifact_equals_fixture

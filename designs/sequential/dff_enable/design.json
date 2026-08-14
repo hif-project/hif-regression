@@ -1,0 +1,11 @@
+{
+    "top": "dff_enable",
+    "pipeline": "muffin_behavioral",
+    "sources": ["dff_enable.v"],
+    "fixtures": {
+        "testbench": "dff_enable_tb.v",
+        "expect_sa0_q": "expect_sa0_q.csv",
+        "expect_sa1_q": "expect_sa1_q.csv"
+    },
+    "note": "Sequential behavioral check with reset and enable. q is one bit wide, so an injected fault pins it to a constant across every cycle regardless of enable or hold."
+}

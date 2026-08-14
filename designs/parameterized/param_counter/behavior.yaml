@@ -1,0 +1,32 @@
+# Parameterized width, deliberately asserted narrowly.
+#
+# For a signal whose span is a parameter expression, Muffin enumerates a single
+# bit rather than WIDTH bits, and the 1-bit injection path then replaces the
+# whole register with a literal instead of forcing one bit of it. That looks
+# wrong, and it is reported upstream rather than encoded here:
+# https://github.com/hif-project/hif-muffin/issues/9
+#
+# So this fixture asserts only what is true regardless of that question:
+#   - inactive instrumentation must reproduce the original RTL exactly;
+#   - the fault, whatever its width, must be observable.
+# There is deliberately no expected_trace oracle. Adding one would record the
+# current behavior as the specification, which is exactly the mistake this
+# corpus exists to avoid.
+
+runs:
+  - {id: golden, params: {mut: 0}}
+
+  - id: sa1_count
+    params:
+      mut: {from: enumerate, array: faults, where: {signal: count, bit: 0, type: stuck-at-1}, take: id}
+
+expectations:
+  - id: golden_matches_rtl
+    use: trace_equal
+    left:  {from: simulate_reference,    run: reference}
+    right: {from: simulate_instrumented, run: golden}
+
+  - id: sa1_count_detected
+    use: trace_differs
+    left:  {from: simulate_instrumented, run: sa1_count}
+    right: {from: simulate_reference,    run: reference}
