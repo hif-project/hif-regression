@@ -4,8 +4,7 @@
 // Each instance drives its own scalar wire, which are then gathered into the
 // output vector. Connecting an instance output directly to a bit-select
 // (`.y(y[0])`) currently crashes hif2verilog - see
-// docs/findings/2026-08-14-backend-codegen.md (finding 1), which covers
-// bit-selects used as assignment targets in general.
+// https://github.com/hif-project/hif-backend/issues/17.
 module top(input [3:0] a, input [3:0] b, output [3:0] y);
   wire y0, y1, y2, y3;
 
