@@ -1,10 +1,10 @@
 // Parameterized mask built by replication rather than by $clog2.
 //
-// This fixture originally used $clog2 to derive an address width. It does not,
-// because $clog2 does not currently survive a round trip: hif2verilog emits it
-// as a system function call that verilog2hif cannot resolve on reparse - see
-// https://github.com/hif-project/hif-backend/issues/19. Adding a construct
-// the toolchain cannot round-trip would only inflate the corpus.
+// This fixture originally used $clog2 to derive an address width, and kept the
+// replication form because $clog2 did not survive a round trip
+// (hif-project/hif-backend#19). That is now fixed, and param_clog2.v covers
+// $clog2 directly; this fixture stays as it is, since replication and
+// reduction are what it is actually here to exercise.
 module param_bitmask #(parameter WIDTH = 8) (
     input [WIDTH-1:0] d,
     output [WIDTH-1:0] low_bit,
