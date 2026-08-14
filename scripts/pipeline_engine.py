@@ -52,6 +52,31 @@ def load_yaml_manifest(path: Path) -> dict:
     return yaml.safe_load(path.read_text())
 
 
+def check_artifact(path: Path):
+    """An operation that declares an artifact has not succeeded until that
+    artifact exists *and* has content.
+
+    Existence alone is not enough. A producer can fail after creating its
+    output file and leave it empty - hif2verilog does exactly this when it
+    aborts partway through printing (hif-backend#23) - and an empty file is
+    happily consumed by the next operation. An empty `.v` is valid Verilog
+    that reparses cleanly, so a downstream "did it reparse?" check reports
+    PASS on a design that was silently lost.
+
+    Returns (ok, reason). `reason` is None when ok.
+    """
+    if not path.exists():
+        return False, f"declared artifact was not produced: {path}"
+    if path.is_dir():
+        return False, f"declared artifact is a directory, expected a file: {path}"
+    if path.stat().st_size == 0:
+        return False, (
+            f"declared artifact is empty (0 bytes): {path} - the operation exited 0 but "
+            f"produced nothing, so anything consuming it would be working from an empty file"
+        )
+    return True, None
+
+
 def resolve_artifact(template: str, context: dict) -> Path:
     pattern = template.format(**context)
     if "*" in pattern or "?" in pattern:
@@ -84,7 +109,7 @@ def run_step(tool_id: str, tools: dict, bin_dir, inputs: list, workdir: Path, na
     if not r["timed_out"] and r["returncode"] == 0:
         try:
             artifact_path = resolve_artifact(tool_def["artifact"], context)
-            artifact_ok = artifact_path.exists()
+            artifact_ok, artifact_error = check_artifact(artifact_path)
         except ArtifactResolutionError as exc:
             artifact_error = str(exc)
 
@@ -92,7 +117,12 @@ def run_step(tool_id: str, tools: dict, bin_dir, inputs: list, workdir: Path, na
     record = {"status": status, **trim_result(r)}
     if artifact_error:
         record["artifact_error"] = artifact_error
-    return status, artifact_path, record
+    # Hand back an artifact only when it passed the check. The pipeline also
+    # stops at the first non-PASS, so today nothing downstream would run
+    # anyway - but that makes "a rejected artifact is never consumed" a
+    # consequence of the loop's control flow rather than a property of the
+    # data. Returning None keeps it true regardless.
+    return status, (artifact_path if artifact_ok else None), record
 
 
 def _worst_status(stages: dict) -> str:
@@ -110,15 +140,24 @@ def resolve_inputs(op, artifacts, previous_id, sources, pipeline_name):
     if not refs:
         if previous_id is None:
             return list(sources)
+        if artifacts.get(previous_id) is None:
+            raise ManifestError(
+                f"pipeline '{pipeline_name}', operation '{op['id']}': "
+                f"its predecessor '{previous_id}' produced no usable artifact"
+            )
         return [artifacts[previous_id]]
 
     resolved = []
     for ref in refs:
         ref_id = ref["from"] if isinstance(ref, dict) else ref
-        if ref_id not in artifacts:
+        # `is None` matters as much as absence: an operation that ran but
+        # whose artifact was rejected (missing, empty, a directory) records a
+        # None, and must not be silently consumed as though it had produced
+        # something.
+        if artifacts.get(ref_id) is None:
             raise ManifestError(
                 f"pipeline '{pipeline_name}', operation '{op['id']}': "
-                f"references '{ref_id}', which produced no artifact"
+                f"references '{ref_id}', which produced no usable artifact"
             )
         resolved.append(artifacts[ref_id])
     return resolved
