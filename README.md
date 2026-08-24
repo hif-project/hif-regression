@@ -1,11 +1,13 @@
-# HIF Regression
+# hif-regression
 
 Cross-repository integration and regression testing for the HIF toolchain.
 
-This is **test/integration infrastructure only** - not a HIF library, and not
-a runtime dependency of any HIF tool. Nothing here is meant to be linked
-against or imported by `hif-core`, `hif-frontend`, `hif-backend`,
-`hif-muffin`, or any future HIF-based tool.
+## What this is
+
+Each HIF repository owns its own unit tests and CI. This repo does not duplicate
+them — it validates them **together**: does the toolchain still build end to
+end, and does it still produce correct output across a curated HDL corpus and
+pinned external benchmark suites?
 
 ```
                      hif-regression
@@ -17,227 +19,84 @@ against or imported by `hif-core`, `hif-frontend`, `hif-backend`,
            +----------- hif-core ----------+
 ```
 
-It currently validates:
+## What this is not
 
-- [hif-core](https://github.com/hif-project/hif-core) - shared AST/IR library
-- [hif-frontend](https://github.com/hif-project/hif-frontend) - Verilog/VHDL -> HIF
-- [hif-backend](https://github.com/hif-project/hif-backend) - HIF -> Verilog/VHDL(/SystemC)
-- [hif-muffin](https://github.com/hif-project/hif-muffin) - RTL fault injection, built on the above
+**Test and integration infrastructure only.** Not a HIF library, and not a
+runtime dependency of anything. Nothing here is meant to be linked against or
+imported by `hif-core`, `hif-frontend`, `hif-backend`, `hif-muffin`, or any
+future HIF tool.
 
-Each of those repos owns its own unit/product tests and CI. This repo does
-not duplicate those - it validates the four repos **together**: does the
-toolchain still build end-to-end, and does it still produce correct output
-across a curated HDL corpus and pinned external benchmark suites.
+It also does not fix HIF bugs, extend HDL support, or vendor external benchmark
+suites. When regression work finds a real toolchain bug, it gets reproduced,
+classified and documented here — and filed against the repository that owns it,
+not silently patched.
 
 **Supported platform: Linux only.**
 
-## Stable vs. develop
+## I want to...
 
-Two separate questions, two separate manifests under `manifests/`:
+| | read |
+|---|---|
+| add a design to the corpus | [docs/adding-a-design.md](docs/adding-a-design.md) |
+| give a design stimulus and a behavioral check | [docs/adding-a-design.md](docs/adding-a-design.md) |
+| leave a design failing because it found a bug | [docs/adding-a-design.md](docs/adding-a-design.md#designs-that-are-expected-to-fail) |
+| add a tool, simulator or validator | [docs/adding-a-tool.md](docs/adding-a-tool.md) |
+| add a whole new HIF repository | [docs/adding-a-tool.md](docs/adding-a-tool.md#a-whole-new-hif-repository) |
+| add or change a pipeline | [docs/adding-a-pipeline.md](docs/adding-a-pipeline.md) |
+| build a toolchain and run any of this | [docs/running.md](docs/running.md) |
+| check one design without a full rebuild | [docs/running.md](docs/running.md#run-one-design-against-binaries-you-already-have) |
+| understand how the runner works | [docs/concepts.md](docs/concepts.md) |
 
-- `manifests/stable.yaml` - the coordinated, released toolchain baseline
-  (currently `v1.0.0` for all four repos). "Does the published toolchain
-  still reproduce successfully?" Run manually, or on a slower schedule.
-- `manifests/develop.yaml` - floating development integration (all four repos
-  at `develop` HEAD). "Do today's development branches still integrate
-  together?" This is what the nightly runs by default.
+## Repository structure
 
-Both are keyed identically to `manifests/repositories.yaml` (below).
+```
+designs/          curated HDL corpus, by category:
+                    combinational/ sequential/ parameterized/
+                    hierarchical/ structural/
+                  A design is a source file, or a directory when it is
+                  multi-file or carries a testbench and oracles.
 
-## Running locally
+manifests/        everything the runner knows, as data:
+  repositories.yaml     the build graph - what to clone, and depends_on
+  stable.yaml           released baseline refs
+  develop.yaml          floating develop refs
+  tools.yaml            transformation tools
+  simulators.yaml       simulators
+  validators.yaml       comparators
+  pipelines.yaml        named operation chains + per-category defaults
+  external-benchmarks.yml   external suites, pinned by commit SHA
+  expectations/         checked-in baselines for external suites
 
-```sh
-scripts/build_toolchain.py --manifest develop --build-type Release --parallel 2
+scripts/          the runner. No tool-, simulator- or validator-specific
+                  knowledge lives here; adding one is a manifest change.
+  build_toolchain.py        clone + build, in dependency order
+  run_regression.py         the curated corpus
+  run_external_regression.py  the pinned external suites
+  run_ctest_suites.py       each repo's own unit tests
+  report.py                 renders both reports as Markdown
+
+docs/             the guides linked above
+external/         external suites fetched at runtime (gitignored)
+reports/          generated reports (gitignored)
 ```
 
-`manifests/repositories.yaml` owns the build graph - what to clone, and in
-what order (a topological sort of its `depends_on`, not a hardcoded list).
-The script clones every repo fresh into `.workspace/` (gitignored - never
-reuses or relies on any pre-existing sibling checkout on your machine),
-builds them in that order (`hif-core` first; the rest discover it via
-`-DHIF_DIR=.workspace/install`, the shared install prefix - see each
-repo's `cmake_args_template` in `repositories.yaml`), and writes
-`.workspace/toolchain.env` with the resolved paths for later steps. Build
-parallelism is capped at `--parallel 2` by default - unbounded parallelism
-has previously exhausted memory on GitHub-hosted runners while compiling
-`hif-core`.
+## Two questions, two manifests
 
-`--build-type` defaults to `Release`. hif-regression measures integration and
-corpus behavior, not development ergonomics, and a known slow tree-
-simplification pass only shows up in Debug builds; pass `--build-type Debug`
-for manual investigation of a specific failure instead.
+- `manifests/develop.yaml` — all repos at `develop` HEAD. *Do today's
+  development branches still integrate?* This is what the nightly runs.
+- `manifests/stable.yaml` — the coordinated released baseline. *Does the
+  published toolchain still reproduce?* Run manually, or on a slower schedule.
 
-Each repo's own CTest suite still runs against its own build directory, e.g.:
+Both are keyed identically to `manifests/repositories.yaml`.
 
-```sh
-source .workspace/toolchain.env
-ctest --test-dir "$WORKSPACE/hif-backend/build" --output-on-failure
-```
+## The nightly
 
-The curated corpus runs through `scripts/run_regression.py`; external
-benchmarks run through `scripts/run_external_regression.py` (see below) -
-both write their own JSON report under `reports/` (gitignored):
+`.github/workflows/nightly.yml` (schedule + manual `workflow_dispatch`) builds
+the floating-`develop` manifest from scratch, runs each repo's CTest suite, the
+curated corpus and the pinned external benchmarks, then publishes a summary to
+the job summary plus a detailed JSON artifact.
 
-```sh
-export PATH="$PREFIX/bin:$PATH"
-export LD_LIBRARY_PATH="$PREFIX/lib:${LD_LIBRARY_PATH:-}"
-python3 scripts/run_regression.py --manifest-label develop
-```
-
-It prints a human-readable summary (per-category PASS/CLEAN_REJECT/CRASH/
-TIMEOUT counts, plus a list of any design that didn't cleanly PASS every
-stage) and writes the full machine-readable detail to
-`reports/curated-report.json`. `scripts/report.py` renders both reports as
-one Markdown summary (what the nightly publishes to the GitHub Actions job
-summary):
-
-```sh
-python3 scripts/report.py   # reads reports/curated-report.json + reports/external-report.json
-```
-
-## Curated design corpus
-
-`designs/<category>/` holds small, hand-written HDL fixtures we own and
-understand completely - not a benchmark dump. Point is controlled semantic
-coverage, not quantity. 53 designs, 15 of them carrying behavioral
-acceptance tests:
-
-| Category | Designs | Behavioral |
-|---|---|---|
-| combinational | 20 | 7 |
-| sequential | 13 | 5 |
-| parameterized | 8 | 1 |
-| hierarchical | 6 | 1 |
-| structural | 6 | 1 |
-
-Almost every design is Verilog. Two are VHDL, and neither runs a category
-default. `combinational/vhdl_and2` runs `vhdl_roundtrip`: `vhdl2hif` and
-`hif2vhdl` had been declared in `tools.yaml` from the beginning with no
-pipeline ever reaching them, so nothing here exercised the VHDL side of the
-toolchain - which is where hif-backend#27 lived. `combinational/vhdl_concurrent`
-runs `vhdl_to_verilog`, the cross-language direction, which neither of the
-same-language round trips reaches - and which is where hif-backend#32 lived: a
-view's `GlobalAction` was never printed, so every VHDL concurrent signal
-assignment was dropped and VHDL regenerated as a Verilog module with the right
-ports and an empty body. A `.vhd` design has to be in directory form with an
-explicit `sources` list, since bare-file discovery globs `*.v`.
-
-Each design is a plain source file (`designs/<category>/<name>.v`, or a
-folder for genuinely multi-file designs), run through a named **pipeline**
-- an ordered tool chain defined in `manifests/pipelines.yaml`, built from the
-tool registry in `manifests/tools.yaml`. Every category has a default
-pipeline (`suite_defaults` in `pipelines.yaml`, currently `plain_roundtrip`
-- frontend parse, HIF regeneration, backend regen, regenerated-HDL reparse -
-everywhere) and expects a clean `PASS` at each step - for our own corpus,
-regression means failure. A design only needs an optional `<name>.json`
-sidecar when it deviates from its category's default, e.g. `and2.json`
-selects `"pipeline": "muffin_roundtrip"` to also probe Muffin instrumentation.
-
-A pipeline is an ordered list of **operations**, each of one of three kinds -
-deliberately distinct, so a failure is attributable rather than opaque:
-
-| kind | registry | consumes | produces | asserts |
-|---|---|---|---|---|
-| `tool` | `manifests/tools.yaml` | artifacts | artifacts | nothing |
-| `simulation` | `manifests/simulators.yaml` | sources + stimulus | traces | nothing |
-| `validation` | `manifests/validators.yaml` | results | a verdict | yes |
-
-Operations run strictly top to bottom, stopping at the first non-`PASS`. There
-is no scheduler and no DAG: an operation with no explicit `inputs` consumes its
-predecessor's artifact, and an explicit `inputs: [<id>]` names an earlier one.
-
-**Behavioral coverage is an orthogonal capability, not a category.** A design
-gains it by moving to directory form inside its existing category - never by
-being duplicated. Such a design carries a testbench, a `behavior.yaml`
-(runtime fault selection and expectations) and its oracles, and runs the
-`muffin_behavioral` pipeline: parse, enumerate, instrument, regenerate,
-simulate the original RTL, simulate the instrumented netlist once per fault
-selection, then validate. Behavioral pipelines need `iverilog`/`vvp` on
-`PATH`; this repo never installs, builds or version-pins a simulator -
-provisioning belongs to the environment.
-
-`behavioral_roundtrip` is the same idea with Muffin left out: simulate the
-original RTL and the regenerated RTL under one testbench and require identical
-traces. It exists for designs whose contract cannot be checked by reparsing -
-`combinational/assign_delay` is one, because a dropped assignment delay
-regenerates as perfectly valid Verilog that responds at the wrong time
-(hif-backend#24). `combinational/constant_tieoff` is another, because a
-dropped constant tie-off regenerates as perfectly valid Verilog whose output
-is simply undriven and reads x (hif-backend#30). Keeping it separate from
-`muffin_behavioral` is what lets a failure say whether the *round trip* or the
-*instrumentation* broke behavior.
-
-`vhdl_to_verilog` is behavioral too, but it cannot be a comparison: there is no
-VHDL simulator in this environment, so the design's own source cannot be run.
-It simulates only the regenerated Verilog and checks it against a checked-in
-expected trace computed by hand from the VHDL. That is deliberately the weaker
-form - it pins the values but takes the corpus's word for what they should be -
-and it is the strongest check available on the one path where a VHDL-sourced
-design can be simulated at all.
-
-**See [`docs/adding-things.md`](docs/adding-things.md)** for how to add a
-transformation tool, a simulator, a validator, a pipeline, a curated design or
-a behavioral test - including the fixed placeholder semantics and a worked
-example showing that a future `Verilog -> DDT -> A2Tool -> C++ -> compare
-against RTL` flow is expressible with manifest entries alone. Adding any of
-these is a manifest change; `run_regression.py`/`pipeline_engine.py` have no
-tool-, simulator- or validator-specific knowledge.
-
-## External benchmarks
-
-`manifests/external-benchmarks.yml` pins each external suite by exact
-repository + commit SHA + sub-path - never a floating branch. Suites are
-fetched into `external/.cache/` (gitignored) at runtime; nothing is vendored
-into git. Bumping a pinned `ref` is a deliberate, reviewable commit.
-
-```sh
-pip install pyyaml  # only extra Python dependency, used to parse the manifest
-python3 scripts/run_external_regression.py
-```
-
-Only the frontend layer (`verilog2hif`) is exercised for external files today
-- matching the scope of the prior informal investigation this pins itself
-against. Results are classified per file as `PASS`, `CLEAN_REJECT`, `CRASH`, or
-`TIMEOUT`. `manifests/expectations/` holds the checked-in baseline once one
-exists for a suite (see that directory's README for the exact regression /
-improvement policy) - the primary rule is **zero unexpected crashes**. A file
-with a known-`TIMEOUT` baseline runs with a much shorter `--probe-timeout`
-(60s by default) instead of the full `--timeout` (300s) - enough to confirm
-"still stuck" without spending the full budget every night; if one completes
-within that window, it is reported as an improvement, not a regression.
-
-Current suites: `logikbench` (`basic`, `iscas85`) and `epfl` /
-`lsils/benchmarks` (`arithmetic`, `random_control`). See
-`manifests/external-benchmarks.yml` for exact pins and per-suite license
-notes - these corpora are not uniformly licensed, don't assume otherwise.
-
-## Adding a future HIF tool to the integration graph
-
-1. Add it to `manifests/repositories.yaml` (repository URL, `depends_on`,
-   `cmake_args_template`) - build order is derived automatically, and so is
-   its CTest run (`scripts/run_ctest_suites.py` reads the same file) - no
-   workflow change needed for either.
-2. Add its ref to both `manifests/stable.yaml` and `manifests/develop.yaml`.
-3. If it's relevant to the curated corpus, add its executable(s) to
-   `manifests/tools.yaml` and reference them from a pipeline in
-   `manifests/pipelines.yaml` (a new named pipeline, or a probe on an
-   existing one) rather than inventing a parallel corpus or touching
-   runner code.
-
-## What the nightly checks
-
-`.github/workflows/nightly.yml` (schedule + manual `workflow_dispatch`)
-builds the floating-`develop` manifest from scratch, runs each repo's own
-CTest suite, runs the curated corpus, runs the pinned external benchmarks,
-and publishes a summary to the GitHub Actions job summary plus a detailed
-JSON artifact. It fails on an actual regression (a crash, or a
-worse-than-baseline classification) - a known, already-documented clean
-rejection or a pre-existing, explicitly-reviewed crash/timeout does not fail
-the job by itself, but always stays visible in the report.
-
-## Non-goals
-
-This repo does not fix HIF bugs, extend Verilog/SystemVerilog support, vendor
-full external benchmark suites, or become a build/runtime dependency of any
-HIF tool. When regression work finds a real toolchain bug, it gets
-reproduced, classified, and documented here - not silently patched.
+It fails on a real regression: a crash, or a worse-than-baseline classification.
+A documented clean rejection, a reviewed pre-existing external crash, or a
+declared [expected failure](docs/adding-a-design.md#designs-that-are-expected-to-fail)
+does not fail the job by itself — but all of them stay visible in the report.

@@ -1,0 +1,30 @@
+# One claim: the Verilog hif2verilog regenerates from this VHDL behaves as a
+# bidirectional pin.
+#
+# As for vhdl_concurrent, this cannot compare against a reference run of the
+# design's own source - there is no VHDL simulator here - so the expected trace
+# is computed by hand from the VHDL and checked in.
+#
+# What the trace pins, in order, and why each line is a distinct failure mode
+# rather than repetition:
+#
+#   t=10,20  driving. The pin carries din. This is the only line a lowering
+#            that drove the pin unconditionally would also get right.
+#   t=30     released with nobody else driving: the pin floats. VHDL spells
+#            release as the value 'Z' rather than as a separate enable, so this
+#            is what says the value survived the round trip.
+#   t=40,50  released while the other device drives. The pin carries its value,
+#            and dout follows the pin - not the value this device last drove.
+#            A read that followed the process's own write onto the backend's
+#            internal driver register would report 1 here from t=20 and never
+#            change.
+#   t=60     both driving, opposite values, resolving to x. Only meaningful
+#            because both drivers are genuinely present.
+
+runs: []
+
+expectations:
+  - id: regenerated_matches_vhdl
+    use: expected_trace
+    left:     {from: simulate_regenerated, run: regenerated}
+    expected: {fixture: expect_regenerated}

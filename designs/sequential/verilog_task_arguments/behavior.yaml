@@ -1,0 +1,27 @@
+# One claim: the regenerated design behaves like the design it came from.
+#
+# This is a Verilog design, so unlike the VHDL ones here its own source can be
+# simulated and the oracle is a comparison rather than a checked-in trace.
+#
+# The stimulus walks the accumulator up to saturation and back, so the trace
+# covers what the task's arguments actually have to do: the inout argument
+# carrying the running total from one call to the next, the output argument
+# reporting the flag, and both branches of the body. A direction that survived
+# parsing but came back wrong, or a copy-back that published the previous
+# call's value, changes these numbers without changing whether the file
+# reparses.
+#
+# This expectation currently FAILS, deliberately, on hif-frontend#31 - the
+# regenerated design's accumulator never leaves 0 because the shadow variable
+# refineToVariables introduces is written back to the signal after a direct
+# assignment but not after a task call. That is the defect this design found,
+# and the design is left in the shape that finds it. It goes green when #31 is
+# fixed, with no change here.
+
+runs: []
+
+expectations:
+  - id: regenerated_matches_rtl
+    use: trace_equal
+    left:  {from: simulate_reference,   run: reference}
+    right: {from: simulate_regenerated, run: regenerated}

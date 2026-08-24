@@ -1,0 +1,26 @@
+# One claim: a device that drives part of a shared bus leaves the rest of it
+# alone through the round trip.
+#
+# As for vhdl_concurrent and vhdl_tristate_pad, this cannot compare against a
+# reference run of the design's own source - there is no VHDL simulator here -
+# so the expected trace is computed by hand from the VHDL and checked in.
+#
+# Every line checks the same two things at once, which is what makes the design
+# small: the low lines carry what this device answers, and the high lines carry
+# what the *other* device is driving, unaltered.
+#
+#   t=10,40  not selected: this device is off its own lines (zz) and still off
+#            the other device's.
+#   t=20,30  selected: it answers on 1..0. The high lines must be untouched -
+#            this is the line that reads 10xx rather than 1011 when the
+#            driver's unwritten bits contribute x.
+#   t=50     the other device changes its lines while this one answers, so a
+#            trace that merely froze the high nibble would not match either.
+
+runs: []
+
+expectations:
+  - id: regenerated_matches_vhdl
+    use: expected_trace
+    left:     {from: simulate_regenerated, run: regenerated}
+    expected: {fixture: expect_regenerated}
