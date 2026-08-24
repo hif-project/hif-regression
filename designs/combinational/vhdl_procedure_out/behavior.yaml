@@ -1,0 +1,23 @@
+# One claim: the Verilog hif2verilog regenerates from this VHDL adds correctly,
+# on the activation the inputs change - not on the next one.
+#
+# As for the other VHDL designs here, this cannot compare against a reference
+# run of the design's own source - there is no VHDL simulator - so the expected
+# trace is computed by hand from the full adder's equations:
+#
+#     s    = a xor b xor cin
+#     cout = (a and b) or (a and cin) or (b and cin)
+#
+# The trace is the whole truth table in ascending order. The first row is the
+# one hif-backend#70 cannot survive: with the copy-back running before the
+# assignment lands, there is no previous activation to publish and the outputs
+# read x. Rows where consecutive results differ catch a lag that persists
+# beyond the first activation.
+
+runs: []
+
+expectations:
+  - id: regenerated_matches_vhdl
+    use: expected_trace
+    left:     {from: simulate_regenerated, run: regenerated}
+    expected: {fixture: expect_regenerated}
