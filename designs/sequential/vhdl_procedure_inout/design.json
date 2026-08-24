@@ -1,0 +1,10 @@
+{
+    "top": "vhdl_procedure_inout",
+    "pipeline": "vhdl_to_verilog",
+    "sources": ["vhdl_procedure_inout.vhd"],
+    "fixtures": {
+        "testbench": "vhdl_procedure_inout_tb.v",
+        "expect_regenerated": "expect_regenerated.csv"
+    },
+    "note": "Cross-language coverage for the dir_inout half of hif-backend#70, which fails differently from the dir_out half that vhdl_procedure_out covers. A Verilog task's inout argument is copied in at entry as well as out at return, so with a non-blocking assignment each call overwrote the local with the still-stale actual before scheduling the new value and the actual never took it - measured over four activations the output stayed x indefinitely. The out half drains after one activation and is merely late; this never converges. The regenerated task also declares an inout argument, which verilog2hif refused before hif-frontend#25, so the reparse stage covers that fix from the other side."
+}

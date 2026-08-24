@@ -1,0 +1,21 @@
+# One claim: the Verilog hif2verilog regenerates from this VHDL divides the
+# clock by two.
+#
+# As for the other VHDL designs here, this cannot compare against a reference
+# run of the design's own source - there is no VHDL simulator - so the expected
+# trace is computed by hand: two reset edges hold q at 0, then q inverts on
+# every subsequent rising edge.
+#
+# The failure this guards is non-convergence rather than lateness. Under
+# hif-backend#70's inout half, q stays x for as long as the clock runs, so the
+# eight free-running edges are not repetition - they are what distinguishes
+# "never settles" from "settles one edge late", which a two-edge trace could
+# not.
+
+runs: []
+
+expectations:
+  - id: regenerated_matches_vhdl
+    use: expected_trace
+    left:     {from: simulate_regenerated, run: regenerated}
+    expected: {fixture: expect_regenerated}

@@ -50,6 +50,23 @@ from toolchain_classify import DEFAULT_TIMEOUT_S, STATUS_SEVERITY  # noqa: E402
 # future status cannot be added to the classifier and silently omitted here.
 STATUS_COLUMNS = sorted(STATUS_SEVERITY, key=lambda s: STATUS_SEVERITY[s])
 
+# Design-level verdicts, appended rather than added to STATUS_SEVERITY: they are
+# not things a *stage* can be classified as. A stage is still PASS/FAIL/CRASH as
+# before; these describe what that outcome means for a design that declared an
+# `expected_failure` in its design.json.
+#
+#   XFAIL  failed where it said it would, for the reason it said. Not a
+#          regression - the bug it documents is filed and still open.
+#   XPASS  declared an expected failure and passed anyway. That IS a failure:
+#          either the bug was fixed and the key should be removed, or the design
+#          stopped exercising what it was written to exercise.
+#
+# A design that declares an expected failure and then fails somewhere *else*
+# keeps its real status, so an unrelated breakage is never absorbed by the key.
+STATUS_XFAIL = "XFAIL"
+STATUS_XPASS = "XPASS"
+STATUS_COLUMNS = STATUS_COLUMNS + [STATUS_XFAIL, STATUS_XPASS]
+
 
 @dataclasses.dataclass
 class Design:
@@ -62,6 +79,7 @@ class Design:
     root: Path = None
     fixtures: dict = dataclasses.field(default_factory=dict)
     behavior: dict = dataclasses.field(default_factory=dict)
+    expected_failure: dict = None
 
     def fixture(self, fixture_name, context):
         """Fixtures are per-design files a pipeline references by role
@@ -74,6 +92,35 @@ class Design:
                 f"'{fixture_name}' (declared: {sorted(self.fixtures)})"
             )
         return path
+
+
+def parse_expected_failure(meta: dict, sidecar: Path):
+    """Validate and return a design's `expected_failure` declaration, if any.
+
+    Shape:
+
+        "expected_failure": {"issue": "hif-frontend#31", "stage": "validate"}
+
+    Both keys are required and neither has a default. `issue` because an
+    expected failure with no filed bug behind it is just a disabled test, and
+    the whole point is that it stays visible and attributable. `stage` because
+    "fails somewhere" is not a claim worth pinning - a design that starts
+    crashing in the frontend instead of mismatching in validation has broken
+    differently, and that must surface rather than be absorbed.
+    """
+    declaration = meta.get("expected_failure")
+    if declaration is None:
+        return None
+    if not isinstance(declaration, dict):
+        raise SystemExit(f"{sidecar}: 'expected_failure' must be a mapping")
+    missing = [k for k in ("issue", "stage") if not declaration.get(k)]
+    if missing:
+        raise SystemExit(
+            f"{sidecar}: 'expected_failure' is missing required key(s) {missing}. "
+            f"An expected failure needs the issue it documents and the stage it "
+            f"fails at, or it is an untracked disabled test."
+        )
+    return {"issue": str(declaration["issue"]), "stage": str(declaration["stage"])}
 
 
 def discover_designs(corpus_root: Path, suite_defaults: dict):
@@ -95,6 +142,7 @@ def discover_designs(corpus_root: Path, suite_defaults: dict):
                     pipeline=meta.get("pipeline", default_pipeline),
                     note=meta.get("note", ""),
                     root=category_dir,
+                    expected_failure=parse_expected_failure(meta, sidecar),
                 ))
             elif entry.is_dir():
                 sidecar = entry / "design.json"
@@ -142,6 +190,7 @@ def discover_designs(corpus_root: Path, suite_defaults: dict):
                     root=entry,
                     fixtures=fixtures,
                     behavior=behavior,
+                    expected_failure=parse_expected_failure(meta, sidecar),
                 ))
     return designs
 
@@ -157,11 +206,45 @@ def run_design(design: Design, pipelines: dict, registries: dict, bin_dir, work_
         design.pipeline, pipelines, registries, bin_dir, design.sources, work_dir,
         design.top, timeout_s, design,
     )
+    status = result["overall_status"]
+    failing_stage = next(
+        (name for name, st in result["stages"].items() if st["status"] != "PASS"), None
+    )
+    resolution = None
+
+    if design.expected_failure:
+        expected_stage = design.expected_failure["stage"]
+        if status == "PASS":
+            # The bug it documents appears to be gone. Loud on purpose: the key
+            # has to be removed deliberately, by someone who checks why.
+            status = STATUS_XPASS
+            resolution = (
+                f"declared an expected failure at stage '{expected_stage}' "
+                f"({design.expected_failure['issue']}) but passed. If that issue is "
+                f"fixed, drop the 'expected_failure' key from design.json."
+            )
+        elif failing_stage == expected_stage:
+            status = STATUS_XFAIL
+            resolution = (
+                f"failed at '{failing_stage}' as declared "
+                f"({design.expected_failure['issue']})"
+            )
+        else:
+            # Real breakage somewhere else. Keep the true status; the key does
+            # not cover this and must not hide it.
+            resolution = (
+                f"declared an expected failure at stage '{expected_stage}' "
+                f"({design.expected_failure['issue']}) but failed at "
+                f"'{failing_stage}' instead - this is not the documented failure."
+            )
+
     return {
         "design": design,
         "stages": result["stages"],
         "behavioral": result["behavioral"],
-        "overall_status": result["overall_status"],
+        "overall_status": status,
+        "failing_stage": failing_stage,
+        "resolution": resolution,
     }
 
 
@@ -192,6 +275,9 @@ def build_report(results, manifest_label):
             "pipeline": design.pipeline,
             "note": design.note,
             "overall_status": status,
+            "failing_stage": res.get("failing_stage"),
+            "expected_failure": design.expected_failure,
+            "resolution": res.get("resolution"),
             "stages": res["stages"],
         })
     return {
@@ -206,7 +292,7 @@ def build_report(results, manifest_label):
 def print_summary(report):
     print(f"\n== hif-regression: curated corpus ({report['manifest']}) ==\n")
     header = (f"{'Category':<15}{'Total':>7}{'Pass':>7}{'CleanReject':>13}"
-              f"{'Timeout':>9}{'Fail':>7}{'Crash':>7}")
+              f"{'Timeout':>9}{'Fail':>7}{'Crash':>7}{'XFail':>7}{'XPass':>7}")
     print(header)
     print("-" * len(header))
     grand = {k: 0 for k in STATUS_COLUMNS}
@@ -217,25 +303,36 @@ def print_summary(report):
         print(
             f"{category:<15}{total:>7}{counts['PASS']:>7}{counts['CLEAN_REJECT']:>13}"
             f"{counts['TIMEOUT']:>9}{counts['FAIL']:>7}{counts['CRASH']:>7}"
+            f"{counts[STATUS_XFAIL]:>7}{counts[STATUS_XPASS]:>7}"
         )
     total = sum(grand.values())
     print("-" * len(header))
     print(
         f"{'TOTAL':<15}{total:>7}{grand['PASS']:>7}{grand['CLEAN_REJECT']:>13}"
         f"{grand['TIMEOUT']:>9}{grand['FAIL']:>7}{grand['CRASH']:>7}"
+        f"{grand[STATUS_XFAIL]:>7}{grand[STATUS_XPASS]:>7}"
     )
 
+    # Expected failures are listed apart from real ones. Mixing them is how a
+    # known-red corpus stops being read at all.
+    xfails = [d for d in report["designs"] if d["overall_status"] == STATUS_XFAIL]
+    if xfails:
+        print(f"\n{len(xfails)} expected failure(s) - documented, not regressions:\n")
+        for d in xfails:
+            print(f"  - {d['category']}/{d['name']}: {d['expected_failure']['issue']} "
+                  f"at stage '{d['failing_stage']}'")
+
     anomalies = [
-        d for d in report["designs"] if d["overall_status"] != "PASS"
+        d for d in report["designs"]
+        if d["overall_status"] not in ("PASS", STATUS_XFAIL)
     ]
     if anomalies:
         print(f"\n{len(anomalies)} design(s) did not cleanly PASS every stage:\n")
         for d in anomalies:
-            failing_stage = next(
-                (name for name, s in d["stages"].items() if s["status"] != "PASS"),
-                None,
-            )
-            print(f"  - {d['category']}/{d['name']}: {d['overall_status']} at stage '{failing_stage}'")
+            where = f" at stage '{d['failing_stage']}'" if d["failing_stage"] else ""
+            print(f"  - {d['category']}/{d['name']}: {d['overall_status']}{where}")
+            if d.get("resolution"):
+                print(f"      {d['resolution']}")
             if d["note"]:
                 print(f"      note: {d['note']}")
 
@@ -302,8 +399,13 @@ def main():
 
     # FAIL joins CRASH/TIMEOUT: a behavioral mismatch in the curated corpus is
     # a real regression, not something to observe and move past.
+    #
+    # XFAIL does not, because it is documented and filed. XPASS does: a design
+    # that was supposed to fail and did not is either a fix nobody recorded or a
+    # design that quietly stopped testing anything.
     any_failure = any(
-        d["overall_status"] in ("CRASH", "TIMEOUT", "FAIL") for d in report["designs"]
+        d["overall_status"] in ("CRASH", "TIMEOUT", "FAIL", STATUS_XPASS)
+        for d in report["designs"]
     )
     sys.exit(1 if any_failure else 0)
 
