@@ -1,0 +1,10 @@
+{
+    "top": "vhdl_procedure_out",
+    "pipeline": "vhdl_to_verilog",
+    "sources": ["vhdl_procedure_out.vhd"],
+    "fixtures": {
+        "testbench": "vhdl_procedure_out_tb.v",
+        "expect_regenerated": "expect_regenerated.csv"
+    },
+    "note": "The corpus's first VHDL procedure, and cross-language coverage for hif-backend#70. A Verilog task's output argument is copied back to its actual when the task returns, while a non-blocking assignment updates the task-local storage only at the end of the time step - afterwards. hif2verilog emitted the assignment with '<=', so every call published the previous call's result and the first published x. The regenerated design compiles, reparses and simulates; it is one activation late, which only a value check at the first activation can see, because the lag drains. The results depend on the inputs rather than being literals, which is what makes the lag a wrong answer rather than a late-but-equal one."
+}

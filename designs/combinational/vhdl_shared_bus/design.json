@@ -1,0 +1,12 @@
+{
+    "top": "vhdl_shared_bus",
+    "pipeline": "vhdl_to_verilog",
+    "sources": [
+        "vhdl_shared_bus.vhd"
+    ],
+    "fixtures": {
+        "testbench": "vhdl_shared_bus_tb.v",
+        "expect_regenerated": "expect_regenerated.csv"
+    },
+    "note": "Cross-language coverage for the partial-drive half of hif-backend#71. The lowering gives a procedurally driven inout port an internal register plus a continuous assignment covering the whole port, but this process writes only two of the four lines; the rest must contribute nothing. Left at their default they contribute x, beat the other device's driver, and the bus reads xx01 where it should read 1001 - elaborating, reparsing, exit 0, silently wrong. vhdl_tristate_pad cannot catch this: its process drives the entire pin. The target is a slice rather than a bit-select, which is both the spelling a real bus device uses and a second shape the lowering has to reach through."
+}

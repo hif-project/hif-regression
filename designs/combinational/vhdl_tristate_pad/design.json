@@ -1,0 +1,12 @@
+{
+    "top": "vhdl_tristate_pad",
+    "pipeline": "vhdl_to_verilog",
+    "sources": [
+        "vhdl_tristate_pad.vhd"
+    ],
+    "fixtures": {
+        "testbench": "vhdl_tristate_pad_tb.v",
+        "expect_regenerated": "expect_regenerated.csv"
+    },
+    "note": "The corpus's first bidirectional design, and cross-language coverage for hif-backend#71: a VHDL inout port driven by a process was emitted as a bare Verilog inout - a net - while the process assigned to it procedurally, so the regenerated design did not elaborate while hif2verilog exited 0 and verilog2hif reparsed it cleanly. Nothing here could have caught it; every other design in the corpus is in/out only. The testbench is the second device on the pin, without which none of release, sample or contention is observable."
+}
