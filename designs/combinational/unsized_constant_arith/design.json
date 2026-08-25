@@ -1,0 +1,11 @@
+{
+    "top": "unsized_constant_arith",
+    "pipeline": "behavioral_roundtrip",
+    "sources": [
+        "unsized_constant_arith.v"
+    ],
+    "fixtures": {
+        "testbench": "unsized_constant_arith_tb.v"
+    },
+    "note": "Verilog's assignment-context width rule: `a + 1` written twice, assigned to four bits and to five, must give 0 and 16 for a = 15. The corpus has plenty of arithmetic operators but nothing that says an adder's width comes from its target rather than its operands, which is exactly the kind of thing an intermediate representation normalises away while still emitting valid HDL. Uses + and * only - an unsized shift amount still regenerates unparsably on hif-backend#18, which is why shifter.v writes its fixed amount sized."
+}

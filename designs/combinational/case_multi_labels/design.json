@@ -1,0 +1,11 @@
+{
+    "top": "case_multi_labels",
+    "pipeline": "behavioral_roundtrip",
+    "sources": [
+        "case_multi_labels.v"
+    ],
+    "fixtures": {
+        "testbench": "case_multi_labels_tb.v"
+    },
+    "note": "Multi-label case alternatives as written in the source, which reach the parser differently from the merged alternative merged_case_labels builds out of two identical bodies - the two paths meet only in the backend. Three labels on one alternative, two on the next, and a default beneath them; the stimulus visits every label individually, so a dropped one is a single row falling through to the default rather than a whole alternative disappearing. Behavioral because that fall-through is a legal case statement with a different answer."
+}

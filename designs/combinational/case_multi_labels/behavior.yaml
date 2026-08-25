@@ -1,0 +1,18 @@
+# One claim: the regenerated design behaves like the design it came from.
+#
+# A label dropped from a multi-label alternative leaves a case statement that
+# parses, reparses and still has a branch for most values of `sel`. The one
+# value that lost its label quietly takes the default instead, which is a
+# single row of this trace and nothing structural at all.
+#
+# No checked-in trace: the claim is that the round trip preserved behavior. The
+# operands are chosen so a, b and a^b are three different values, so no row can
+# agree with the default by coincidence.
+
+runs: []
+
+expectations:
+  - id: regenerated_matches_rtl
+    use: trace_equal
+    left:  {from: simulate_reference,   run: reference}
+    right: {from: simulate_regenerated, run: regenerated}

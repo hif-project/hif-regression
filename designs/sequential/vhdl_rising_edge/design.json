@@ -1,0 +1,10 @@
+{
+    "top": "vhdl_rising_edge",
+    "pipeline": "vhdl_to_verilog",
+    "sources": ["vhdl_rising_edge.vhd"],
+    "fixtures": {
+        "testbench": "vhdl_rising_edge_tb.v",
+        "expect_regenerated": "expect_regenerated.csv"
+    },
+    "note": "The corpus's first VHDL sequential design, and cross-language coverage for hif-backend#51. A VHDL clocked process carries the edge as a condition in its body while its sensitivity list names only clk, so hif2verilog has to recognise rising_edge(clk) and rebuild `always @(posedge clk)` from it; a process left level-sensitive on clk is valid Verilog with the same ports and a different machine. The enable is what makes that visible - d moves while en is low, so a register that reloaded at the wrong time picks up a value it should not have."
+}

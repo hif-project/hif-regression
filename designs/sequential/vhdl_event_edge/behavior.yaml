@@ -1,0 +1,31 @@
+# One claim: the Verilog hif2verilog regenerates from this VHDL actually does
+# what the VHDL says.
+#
+# No VHDL simulator exists here, so the expected trace is computed by hand from
+# the VHDL rather than compared against a reference run of the source.
+#
+# The clock rises at 5 ns and every 10 ns after. Each step presents its inputs
+# before an edge, then moves `d` two nanoseconds after that edge and leaves it
+# moved. Reading the VHDL:
+#
+#   12000  rst high over the edge at 5 ns: q is 0000 although d was 1010
+#   22000  rst low over the edge at 15 ns: q captured 1010, and `d` now reads
+#          0000 without q following
+#   32000  same again from a different value: q captured 0101, d now 1111
+#   42000  rst high over the edge at 35 ns with d at 1100: back to 0000, from a
+#          non-zero state
+#   52000  rst low over the edge at 45 ns: q captured 1111, d now 0110
+#
+# Rows two, three and five are the edge-sensitivity claim: a sensitivity list
+# rebuilt from the signals read rather than from the edge is a latch, and q
+# would follow `d` to the post-edge value on each of them. Rows one and four
+# are the synchronous reset, and `d` is non-zero on both so a reset that
+# vanished shows as 1010 and 1100 rather than as a coincidental zero.
+
+runs: []
+
+expectations:
+  - id: regenerated_matches_vhdl
+    use: expected_trace
+    left:     {from: simulate_regenerated, run: regenerated}
+    expected: {fixture: expect_regenerated}
