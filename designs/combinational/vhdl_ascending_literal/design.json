@@ -1,0 +1,11 @@
+{
+    "top": "vhdl_ascending_literal",
+    "pipeline": "vhdl_to_verilog",
+    "sources": ["vhdl_ascending_literal.vhd"],
+    "fixtures": {
+        "testbench": "vhdl_ascending_literal_tb.v",
+        "expect_regenerated": "expect_regenerated.csv"
+    },
+    "note": "The sizing half of hif-backend#91, kept apart from vhdl_ascending_range which covers the indexing half and declares no ascending-typed constant on purpose. hif2verilog sizes a bitvector literal as left-right+1, which is the width only for a descending range; for (0 to 3) it is -2, so `\"1100\"` is emitted as `-2'b1100`. iverilog takes two bits, truncates to 2'b00, negates to zero, warns twice and exits 0 - the mask becomes all zeros and y is always 0000 instead of a's high half. This design indexes nothing, so a fix to the index mapping alone cannot make it pass and a fix to the sizing alone cannot make vhdl_ascending_range pass.",
+    "expected_failure": {"issue": "hif-backend#91", "stage": "validate"}
+}
