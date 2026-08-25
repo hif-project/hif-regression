@@ -1,0 +1,11 @@
+{
+    "top": "bit_reverse",
+    "pipeline": "muffin_behavioral",
+    "sources": ["bit_reverse.v"],
+    "fixtures": {
+        "testbench": "bit_reverse_tb.v",
+        "expect_sa1_bit2_assign": "expect_sa1_bit2_assign.csv",
+        "expect_sa0_bit0_assign": "expect_sa0_bit0_assign.csv"
+    },
+    "note": "A width-1 fault location that is one bit of a wider signal. Each statement assigns a single bit of y, so y carries four locations of width 1 rather than one of width 4, and a width-1 location is injected as a literal where a wider one is masked. combinational/reduction_ops already covers both injection forms, but its width-1 location is a scalar output with no siblings to disturb; here the literal must land on one bit of a four-bit vector and leave the other three carrying their real values. A location that replaced the whole vector would still be valid RTL, and is a defect Muffin has had before in the parameterized case (hif-muffin#9). All four locations report bit 0 because each is one bit wide, so `line` is the only attribute that distinguishes them."
+}

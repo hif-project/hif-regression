@@ -1,0 +1,11 @@
+{
+    "top": "nibble_popcount",
+    "pipeline": "muffin_behavioral",
+    "sources": ["nibble_popcount.v"],
+    "fixtures": {
+        "testbench": "nibble_popcount_tb.v",
+        "expect_sa1_return_bit0": "expect_sa1_return_bit0.csv",
+        "expect_sa1_lo_bit0": "expect_sa1_lo_bit0.csv"
+    },
+    "note": "The corpus's first Muffin design containing a function, and the only fault location that is shared by more than one use: popcount4_return is one location reached by both call sites, so a fault there moves lo and hi together while a fault on lo moves only lo. Two call sites are what make that statable - with one, a fault on the function's result and a fault on the assignment receiving it are indistinguishable. An instrumentation that injected at the call sites rather than inside the function body would emit valid RTL in which the shared location does not exist, and the two runs here would then be identical; the fixture asserts directly that they are not."
+}
