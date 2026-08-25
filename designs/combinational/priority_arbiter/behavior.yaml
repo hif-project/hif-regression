@@ -1,0 +1,72 @@
+# Four branches, four fault locations on one signal, and the question of when a
+# fault is visible at all.
+#
+# Muffin's location is the assignment, so `grant` carries one location per
+# branch. {signal, bit, type} matches all four; `line` is what separates them.
+# Lines 21 to 24 are the req[0], req[1], req[2] and default branches in order.
+# Moving a branch breaks these selectors - there is no other distinguishing
+# attribute.
+#
+# The claim is that an injected fault is inert until its branch executes:
+#
+#   SA1 on bit 2 of the line-21 branch  ->  grant becomes 101, but only when
+#                                           req[0] wins the priority
+#   SA0 on bit 1 of the line-22 branch  ->  grant becomes 000, but only when
+#                                           req[1] wins
+#
+#   req    golden   SA1@first   SA0@second
+#   001    001      101 moved   001
+#   010    010      010         000 moved
+#   100    100      100         100
+#   000    000      000         000
+#   011    001      101 moved   001
+#   110    010      010         000 moved
+#
+# Each fault moves exactly two of the six rows, and they are disjoint pairs.
+# That disjointness is the real content: a hoisted injection - one applied to
+# `grant` wherever it is assigned rather than inside the branch - would move all
+# six rows for both faults, which is valid RTL and a different circuit.
+#
+# Rows five and six assert two requests at once. Without them "the fault shows
+# when req[0] is set" and "the fault shows when req[0] wins" are the same
+# statement; with them they are not, and it is the second that is true. Row four
+# asserts nothing, so the default branch is reached and both faults must be
+# invisible there - the row that catches an injection leaking into the branch
+# that assigns the all-zero grant.
+
+runs:
+  - {id: golden, params: {mut: 0}}
+
+  - id: sa1_first_bit2
+    params:
+      mut: {from: enumerate, array: faults, where: {signal: grant, bit: 2, type: stuck-at-1, line: 21}, take: id}
+
+  - id: sa0_second_bit1
+    params:
+      mut: {from: enumerate, array: faults, where: {signal: grant, bit: 1, type: stuck-at-0, line: 22}, take: id}
+
+expectations:
+  - id: golden_matches_rtl
+    use: trace_equal
+    left:  {from: simulate_reference,    run: reference}
+    right: {from: simulate_instrumented, run: golden}
+
+  - id: sa1_first_bit2_expected_trace
+    use: expected_trace
+    left:     {from: simulate_instrumented, run: sa1_first_bit2}
+    expected: {fixture: expect_sa1_first_bit2}
+
+  - id: sa0_second_bit1_expected_trace
+    use: expected_trace
+    left:     {from: simulate_instrumented, run: sa0_second_bit1}
+    expected: {fixture: expect_sa0_second_bit1}
+
+  - id: sa1_first_bit2_detected
+    use: trace_differs
+    left:  {from: simulate_instrumented, run: sa1_first_bit2}
+    right: {from: simulate_reference,    run: reference}
+
+  - id: sa0_second_bit1_detected
+    use: trace_differs
+    left:  {from: simulate_instrumented, run: sa0_second_bit1}
+    right: {from: simulate_reference,    run: reference}

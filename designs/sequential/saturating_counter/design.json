@@ -1,0 +1,11 @@
+{
+    "top": "saturating_counter",
+    "pipeline": "muffin_behavioral",
+    "sources": ["saturating_counter.v"],
+    "fixtures": {
+        "testbench": "saturating_counter_tb.v",
+        "expect_sa1_incr_bit0": "expect_sa1_incr_bit0.csv",
+        "expect_sa0_hold_bit0": "expect_sa0_hold_bit0.csv"
+    },
+    "note": "Per-assignment fault locations on state. count is a register assigned in three branches, so it carries three locations; every other sequential Muffin design here has exactly one location per register on purpose - counter_load, pipeline3 and param_counter all say so - so the rule had only ever been tested on wires. What state adds is feedback: count feeds the branch condition, so a fault changes which branch runs next and compounds across cycles rather than showing as a fixed offset. The increment fault never lets the counter take an even value again and reaches saturation in half the cycles; the hold fault is invisible for ten samples and then turns the saturated state into an oscillation. That second one is why the run continues past saturation - with a shorter run it would look like no fault at all, which is the difference between a fault being undetected and a fixture being unable to detect it. Source line numbers are load-bearing: they are the only attribute separating the three locations."
+}

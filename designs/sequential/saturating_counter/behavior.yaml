@@ -1,0 +1,74 @@
+# Three fault locations on one register, and what feedback does to a fault.
+#
+# Muffin's location is the assignment. `count` is assigned in three branches, so
+# {signal, bit, type} matches three records and `line` separates them: line 21
+# is the reset branch, 22 the hold branch, 23 the increment.
+#
+# priority_arbiter in this batch makes the same per-assignment point on a wire,
+# where a branch fault is visible exactly on the vectors that take the branch.
+# State changes the shape of that claim, because count feeds the condition that
+# chooses the branch:
+#
+#   SA1 on bit 0 of the line-23 increment  ->  every increment lands odd, so the
+#       counter goes 0 1 3 5 7 9 and saturates in five steps instead of nine.
+#       The fault is not a fixed offset - each cycle's error changes the input
+#       to the next, and the trajectory diverges.
+#
+#   SA0 on bit 0 of the line-22 hold  ->  invisible for ten samples, because the
+#       branch never runs until count reaches nine. From then on the saturated
+#       state oscillates 8, 9, 8, 9 instead of holding.
+#
+#   sample  golden  SA1@incr  SA0@hold
+#   0..9    0..9    0 1 3 5 7 9 9 9 9 9   0..9   (identical to golden)
+#   10      9       9                     8
+#   11      9       9                     9
+#   12      9       9                     8
+#   13      9       9                     9
+#
+# The four samples past saturation are the point of the run's length, not
+# padding. The hold fault does nothing before them, so a shorter trace would
+# show it as undetected - which would be the fixture failing to ask, not the
+# fault failing to appear. Keeping them is what separates those two.
+#
+# Both oracles were derived from the branch expressions - (count + 1) | 1 and
+# count & ~1 - and then confirmed against hand-mutated RTL carrying exactly
+# those expressions, which also establishes that each injection stays inside
+# its own branch: the hold mutation leaves the first ten samples untouched.
+
+runs:
+  - {id: golden, params: {mut: 0}}
+
+  - id: sa1_incr_bit0
+    params:
+      mut: {from: enumerate, array: faults, where: {signal: count, bit: 0, type: stuck-at-1, line: 23}, take: id}
+
+  - id: sa0_hold_bit0
+    params:
+      mut: {from: enumerate, array: faults, where: {signal: count, bit: 0, type: stuck-at-0, line: 22}, take: id}
+
+expectations:
+  - id: golden_matches_rtl
+    use: trace_equal
+    left:  {from: simulate_reference,    run: reference}
+    right: {from: simulate_instrumented, run: golden}
+
+  - id: sa1_incr_bit0_expected_trace
+    use: expected_trace
+    left:     {from: simulate_instrumented, run: sa1_incr_bit0}
+    expected: {fixture: expect_sa1_incr_bit0}
+
+  - id: sa0_hold_bit0_expected_trace
+    use: expected_trace
+    left:     {from: simulate_instrumented, run: sa0_hold_bit0}
+    expected: {fixture: expect_sa0_hold_bit0}
+
+  # The two branch faults are different faults, not one location named twice.
+  - id: incr_and_hold_faults_differ
+    use: trace_differs
+    left:  {from: simulate_instrumented, run: sa1_incr_bit0}
+    right: {from: simulate_instrumented, run: sa0_hold_bit0}
+
+  - id: sa0_hold_bit0_detected
+    use: trace_differs
+    left:  {from: simulate_instrumented, run: sa0_hold_bit0}
+    right: {from: simulate_reference,    run: reference}

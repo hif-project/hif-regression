@@ -1,0 +1,67 @@
+# Four one-bit fault locations on one four-bit signal.
+#
+# Muffin's location is the assignment. Each statement here assigns a single bit,
+# so each location has width 1 and reports bit 0 - all four of them. {signal,
+# bit, type} matches four records; `line` is the only thing that separates them.
+# Lines 21 to 24 assign y[0], y[1], y[2] and y[3] in that order.
+#
+# Because the locations are one bit wide the injected value is a literal, not a
+# mask. The claim is that the literal replaces exactly the assigned bit:
+#
+#   SA1 on the line-23 location (y[2] = a[1])  ->  y[2] held high
+#   SA0 on the line-21 location (y[0] = a[3])  ->  y[0] held low
+#
+#   a      golden  SA1@y[2]        SA0@y[0]
+#   0000   0000    0100 moved      0000
+#   1111   1111    1111            1110 moved
+#   1010   0101    0101            0100 moved
+#   1000   0001    0101 moved      0000 moved
+#
+# The rows that matter are 1010 and 1000, because they are the only ones where
+# the three bits the injection must not touch carry differing values. Under an
+# all-zero or all-one input a corrupted sibling looks exactly like a correct
+# one, so those two rows alone cannot tell "one bit forced" from "the whole
+# vector replaced by a literal" - which is the shape of hif-muffin#9, and valid
+# RTL either way.
+#
+# Each fault is also invisible on at least one row: SA1 on the all-ones vector,
+# SA0 on the all-zero one. A fault that changed every vector would be a weaker
+# statement, since it would be consistent with an injection that ignored the
+# data entirely.
+
+runs:
+  - {id: golden, params: {mut: 0}}
+
+  - id: sa1_bit2_assign
+    params:
+      mut: {from: enumerate, array: faults, where: {signal: y, bit: 0, type: stuck-at-1, line: 23}, take: id}
+
+  - id: sa0_bit0_assign
+    params:
+      mut: {from: enumerate, array: faults, where: {signal: y, bit: 0, type: stuck-at-0, line: 21}, take: id}
+
+expectations:
+  - id: golden_matches_rtl
+    use: trace_equal
+    left:  {from: simulate_reference,    run: reference}
+    right: {from: simulate_instrumented, run: golden}
+
+  - id: sa1_bit2_assign_expected_trace
+    use: expected_trace
+    left:     {from: simulate_instrumented, run: sa1_bit2_assign}
+    expected: {fixture: expect_sa1_bit2_assign}
+
+  - id: sa0_bit0_assign_expected_trace
+    use: expected_trace
+    left:     {from: simulate_instrumented, run: sa0_bit0_assign}
+    expected: {fixture: expect_sa0_bit0_assign}
+
+  - id: sa1_bit2_assign_detected
+    use: trace_differs
+    left:  {from: simulate_instrumented, run: sa1_bit2_assign}
+    right: {from: simulate_reference,    run: reference}
+
+  - id: sa0_bit0_assign_detected
+    use: trace_differs
+    left:  {from: simulate_instrumented, run: sa0_bit0_assign}
+    right: {from: simulate_reference,    run: reference}
