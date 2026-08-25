@@ -78,6 +78,55 @@ pipelines:
 
       - {id: validate, kind: validation, cases: {from_spec: expectations}}
 
+  # The other cross-language direction: Verilog in, VHDL out. Nothing reached
+  # it. vhdl_roundtrip is the only pipeline that runs hif2vhdl at all, and it
+  # has one design, so a whole backend tool was covered by a single fixture
+  # while hif2verilog was covered by a hundred.
+  #
+  # This goes all the way round - Verilog -> HIF -> VHDL -> HIF -> Verilog -
+  # rather than stopping at the VHDL, and it does so because stopping there
+  # cannot check very much. There is no VHDL simulator here, so the VHDL
+  # itself cannot be run; and vhdl2hif is more permissive than the VHDL LRM,
+  # so "it reparsed" is weaker than it sounds. Measured, not assumed: hif2vhdl
+  # emits a plain `variable` in an architecture declarative region, where VHDL
+  # allows only `shared variable`, and vhdl2hif accepts it with exit 0. A
+  # structural pipeline ending at reparse_vhdl would call that a PASS.
+  #
+  # Closing the circle back to Verilog buys a real behavioral check: the
+  # design's own trace, simulated from the twice-crossed Verilog, against the
+  # untouched original under the same testbench. Like behavioral_roundtrip it
+  # needs no checked-in oracle, because the claim is "the excursion through
+  # VHDL preserved behaviour" rather than any particular set of values.
+  #
+  # The cost is that a failure names one of four tools rather than one, which
+  # is what the per-operation stage ids are for: to_vhdl is hif2vhdl,
+  # to_verilog is hif2verilog on the twice-crossed HIF, and those are
+  # genuinely different defects.
+  verilog_to_vhdl:
+    operations:
+      - {id: frontend,     kind: tool, use: verilog2hif}
+      - {id: to_vhdl,      kind: tool, use: hif2vhdl}
+      - {id: reparse_vhdl, kind: tool, use: vhdl2hif}
+      - {id: to_verilog,   kind: tool, use: hif2verilog}
+
+      # Reference: the hand-written RTL, untouched by any HIF tool.
+      - id: simulate_reference
+        kind: simulation
+        use: iverilog
+        sources: [{design: sources}, {fixture: testbench}]
+        top: "{name}_tb"
+        runs: [{id: reference}]
+
+      # The same design after a full excursion through VHDL and back.
+      - id: simulate_roundtripped
+        kind: simulation
+        use: iverilog
+        sources: [{from: to_verilog}, {fixture: testbench}]
+        top: "{name}_tb"
+        runs: [{id: roundtripped}]
+
+      - {id: validate, kind: validation, cases: {from_spec: expectations}}
+
   # Behavioral acceptance for the round trip itself, with no instrumentation
   # involved: simulate the original RTL and the regenerated RTL under the same
   # testbench and require identical traces.
