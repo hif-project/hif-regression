@@ -1,0 +1,11 @@
+{
+    "top": "vhdl_ascending_range",
+    "pipeline": "vhdl_to_verilog",
+    "sources": ["vhdl_ascending_range.vhd"],
+    "fixtures": {
+        "testbench": "vhdl_ascending_range_tb.v",
+        "expect_regenerated": "expect_regenerated.csv"
+    },
+    "note": "The corpus's first ascending VHDL range, and the design that finds the indexing half of hif-backend#91. `std_logic_vector(0 to 3)` numbers from the left, so a(0) is the leftmost element; hif2verilog prints the port descending as [3:0] but leaves the index alone, so a(0) becomes a[0] - the least significant bit, which is the other end. first and last therefore come out swapped. The design reads only the two ends and declares no constant of an ascending type: an ascending-typed literal trips the other half of #91, where the size is computed as left-right+1 and comes out negative, and keeping that out is what makes this failure attributable. The oracle is stated as leftmost-bit and rightmost-bit of the driven pattern rather than as a Verilog index, so it holds under either fix - port printed ascending with a[0] kept, or printed descending with the index remapped to a[3].",
+    "expected_failure": {"issue": "hif-backend#91", "stage": "validate"}
+}

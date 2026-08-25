@@ -1,0 +1,42 @@
+# One claim: the aggregate (5 => '1', 3 => '1', others => '0') reaches the
+# regenerated Verilog as the constant 00101000 - those two bits set, every
+# other bit clear.
+#
+# No VHDL simulator exists here, so the expected trace is computed by hand from
+# the VHDL rather than compared against a reference run of the source. The
+# design is y <= a xor TOGGLE, and xor is what makes the whole constant
+# readable: it passes a through where TOGGLE is 0 and inverts it where TOGGLE
+# is 1, so no row hides half of it the way a masking operator would.
+#
+#   1000  a=00000000 -> y=00101000
+#   2000  a=11111111 -> y=11010111
+#   3000  a=00101000 -> y=00000000
+#   4000  a=10100000 -> y=10001000
+#
+# Row one drives all zeros, so y is the constant itself and the row reads it
+# out directly. It is the row that names the bit positions, and 00101000 is not
+# a palindrome, so a constant that arrived bit-reversed reads as 00010100 here
+# rather than as itself.
+#
+# Row two drives all ones, so y is the constant's complement. It is not row one
+# restated: an operator that is not xor can agree with row one and disagree
+# here - `or` gives 11111111 - because on an all-zero operand or, xor and a
+# plain copy of the constant are the same function.
+#
+# Row three drives the constant itself, so the correct answer is all zeros.
+# That requires a to equal TOGGLE bit for bit, which is a sharper statement
+# than either uniform row: a constant off by one bit still produces something
+# plausible in rows one and two but leaves a set bit here.
+#
+# Row four is the mixed pattern, and it is the only row in which all four
+# operand combinations occur - 0^0, 0^1, 1^0 and 1^1 all appear. The three
+# rows above it pair a uniform operand with the constant, so none of them can
+# tell a per-bit xor from a function that merely agrees on uniform inputs.
+
+runs: []
+
+expectations:
+  - id: regenerated_matches_vhdl
+    use: expected_trace
+    left:     {from: simulate_regenerated, run: regenerated}
+    expected: {fixture: expect_regenerated}

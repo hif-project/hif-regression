@@ -1,0 +1,39 @@
+# One claim: the Verilog hif2verilog regenerates from this VHDL clears a's top
+# bit, which is what the VHDL says. It does not - see hif-backend#90 - so this
+# design is a declared expected failure at `validate`.
+#
+# No VHDL simulator exists here, so the expected trace is computed by hand from
+# the VHDL rather than compared against a reference run of the source. The
+# design is y <= '0' & a(WIDTH-2 downto 0) with WIDTH defaulting to 6, so y is
+# a with bit 5 forced to zero and bits 4..0 untouched.
+#
+#   1000  a=111111 -> y=011111
+#   2000  a=101010 -> y=001010
+#   3000  a=010101 -> y=010101
+#   4000  a=100000 -> y=000000
+#
+# Rows one, two and four have a's top bit set, and each is a different failure
+# mode rather than the same one three times. Row one is all ones, so a y that
+# came back all ones says the slice was dropped and nothing else changed. Row
+# two alternates, so it separates "top bit not cleared" from "wrong bit
+# cleared" - clearing any single other bit gives a value that is neither
+# 101010 nor 001010. Row four leaves exactly one bit set, so the correct answer
+# is all zeros and any surviving one bit is visible on its own.
+#
+# Row three is the control and carries the opposite claim: a's top bit is
+# already zero, so y equals a. It pins that the operation is a single-bit clear
+# and not a mask, a shift or a truncation - all of which change 010101 - and it
+# is the row that stays correct under the defect, which is what makes the other
+# three attributable to the top bit specifically.
+#
+# Under hif-backend#90 the regeneration is `assign y = {1'b0, a}`, which
+# truncates to a, so rows one, two and four report a unchanged and row three
+# passes.
+
+runs: []
+
+expectations:
+  - id: regenerated_matches_vhdl
+    use: expected_trace
+    left:     {from: simulate_regenerated, run: regenerated}
+    expected: {fixture: expect_regenerated}

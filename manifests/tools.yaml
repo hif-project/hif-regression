@@ -13,8 +13,16 @@
 # not timed out) run, to decide PASS vs CRASH and to hand to the next
 # pipeline step. May contain a glob (*) when the tool's own naming isn't
 # fully predictable (e.g. hif2verilog names output after the surviving
-# DesignUnit, not always {name}) - the runner requires it to resolve to
-# exactly one file; zero or multiple matches is a hard error, not a guess.
+# DesignUnit, not always {name}). A glob that matches nothing is a hard
+# error; a glob that matches several files resolves to all of them, because
+# hif2verilog emits one .v per DesignUnit and a design whose hierarchy
+# survived to the emitter is spread across them. Taking just one would drop
+# the rest of the hierarchy and still reparse cleanly.
+#
+# The no-guessing rule that used to be spelled "exactly one file" now lives
+# where it is load-bearing: a tool whose command takes a single {input}
+# refuses a multi-file artifact rather than picking one. Tools that take
+# {inputs} - verilog2hif, vhdl2hif - accept them all.
 #
 # The artifact must exist AND be non-empty. Exiting 0 is not evidence that a
 # tool produced anything: it can fail after creating its output file and
