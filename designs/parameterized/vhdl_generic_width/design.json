@@ -1,0 +1,11 @@
+{
+    "top": "vhdl_generic_width",
+    "pipeline": "vhdl_to_verilog",
+    "sources": ["vhdl_generic_width.vhd"],
+    "fixtures": {
+        "testbench": "vhdl_generic_width_tb.v",
+        "expect_regenerated": "expect_regenerated.csv"
+    },
+    "note": "The corpus's first VHDL design in parameterized/, and the design that finds hif-backend#90. A generic reaching port widths survives - `generic (WIDTH : integer := 6)` comes out as `parameter width = 6` and the ports follow - but a slice of a parameter-width vector anchored at bit 0 loses its part-select, so `'0' & a(WIDTH-2 downto 0)` regenerates as `{1'b0, a}`: seven bits into a six-bit net, truncating back to a. The design clears a's top bit and the regeneration leaves it standing. Note the concatenation puts the slice on the right deliberately; with it on the left, as in a rotate, the bit the defect adds is the same bit the assignment truncates away and the broken Verilog computes the right answer.",
+    "expected_failure": {"issue": "hif-backend#90", "stage": "validate"}
+}
