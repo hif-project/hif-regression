@@ -1,0 +1,38 @@
+# One claim: a full excursion through VHDL and back preserves behaviour exactly
+# - the twice-crossed Verilog and the untouched original produce identical
+# traces under the same testbench.
+#
+# No values are checked in. The claim is about the excursion rather than about
+# particular numbers, so the reference simulation supplies them, as
+# behavioral_roundtrip does.
+#
+# The design is a two-stage shift register written as two non-blocking
+# assignments in one process. Both right-hand sides are evaluated with the
+# values standing at the edge, so q takes p's previous contents while p takes d.
+# The failure mode is one of the two becoming immediate, which puts d into both
+# stages at the same edge and makes q equal p.
+#
+#   12000  d=0001  p=0001  q=xxxx
+#   22000  d=0010  p=0010  q=0001
+#   32000  d=0100  p=0100  q=0010
+#   42000  d=1000  p=1000  q=0100
+#
+# Every row discriminates, and the first one does so differently from the rest.
+# Rows two to four show q holding the value p held at the previous edge; if
+# either assignment went immediate they would each show q equal to p. Row one
+# has no previous edge to lag behind, so q is still uninitialised - xxxx rather
+# than 0001 - which is the signature that separates a genuine one-edge lag from
+# a stage that merely happens to be one value behind.
+#
+# d is one-hot and advances every step so that no two adjacent edges share a
+# value. Were d to repeat, the lagged and immediate readings would coincide on
+# that row and it would stop discriminating - the same trap the combinational
+# form of v2vhdl_blocking_readback fell into.
+
+runs: []
+
+expectations:
+  - id: roundtripped_matches_rtl
+    use: trace_equal
+    left:  {from: simulate_reference,    run: reference}
+    right: {from: simulate_roundtripped, run: roundtripped}

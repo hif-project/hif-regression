@@ -1,0 +1,9 @@
+{
+    "top": "v2vhdl_blocking_readback",
+    "pipeline": "verilog_to_vhdl",
+    "sources": ["v2vhdl_blocking_readback.v"],
+    "fixtures": {
+        "testbench": "v2vhdl_blocking_readback_tb.v"
+    },
+    "note": "The hardest mapping on the Verilog-to-VHDL path. Verilog's blocking `=` takes effect immediately, so the second statement reads what the first just wrote; a VHDL signal keeps its old value until the process suspends, so only a VHDL variable reproduces it. hif2vhdl does use a variable - and declares it in the architecture declarative region, where VHDL allows only `shared variable`, which vhdl2hif accepts anyway. That leniency is why this design is behavioral rather than structural: reparsing the VHDL proves nothing about it. The process is clocked deliberately: a combinational lowering puts the intermediate in its own sensitivity list, so a stale read re-triggers and settles to the same value, and a stale-read mutation of the combinational form was measured to leave the trace unchanged. A clocked process runs once per edge, so staleness survives to the sample."
+}

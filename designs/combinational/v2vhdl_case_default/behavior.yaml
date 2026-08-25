@@ -1,0 +1,36 @@
+# One claim: a full excursion through VHDL and back preserves behaviour exactly
+# - the twice-crossed Verilog and the untouched original produce identical
+# traces under the same testbench.
+#
+# No values are checked in. The claim is about the excursion rather than about
+# particular numbers, so the reference simulation supplies them.
+#
+# With a = 1100 and b = 1010 the four alternatives give four different values,
+# so each row names exactly one branch:
+#
+#   1000  s=00 -> a          = 1100
+#   2000  s=01 -> b          = 1010
+#   3000  s=11 -> default    -> a ^ b = 0110
+#   4000  s=10 -> a & b      = 1000
+#   5000  s=xx -> default    -> a ^ b = 0110
+#
+# Rows three and five both reach the default and they are not the same claim.
+# Row three says it is reached at all: emitted without any catch-all the VHDL
+# case would be non-exhaustive and 2'b11 would select nothing. Row five says it
+# came across as WHEN OTHERS rather than as an explicit WHEN "11" - both serve
+# 2'b11, and only OTHERS also serves a selector that is not a defined value.
+# Verilog's case matches exactly, x included, so xx reaching the default is
+# well defined rather than a metavalue accident.
+#
+# The order is deliberate. 2'b10 sits between them so that the row before the
+# metavalue gives 1000: a selector that matched nothing would leave the process
+# holding, and holding has to look different from reaching the default. Ordered
+# the other way round the hold and the correct answer are both 0110.
+
+runs: []
+
+expectations:
+  - id: roundtripped_matches_rtl
+    use: trace_equal
+    left:  {from: simulate_reference,    run: reference}
+    right: {from: simulate_roundtripped, run: roundtripped}
