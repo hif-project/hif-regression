@@ -1,0 +1,10 @@
+{
+    "top": "vhdl_variable_process",
+    "pipeline": "vhdl_to_verilog",
+    "sources": ["vhdl_variable_process.vhd"],
+    "fixtures": {
+        "testbench": "vhdl_variable_process_tb.v",
+        "expect_regenerated": "expect_regenerated.csv"
+    },
+    "note": "VHDL's variable-versus-signal distinction, which is the one an intermediate representation is most likely to flatten: the variable is written, read back, written and read back again inside a single process execution, and every read must see the write before it. Flattened into a signal the process keeps its four statements, both outputs and its shape, and merely publishes the previous execution's value. The stimulus makes `a and b` alternate on every step so a lagging output disagrees on every row, and one row drives z high while y is low so the two outputs cannot have collapsed into each other."
+}

@@ -1,0 +1,11 @@
+{
+    "top": "concat_mixed_widths",
+    "pipeline": "behavioral_roundtrip",
+    "sources": [
+        "concat_mixed_widths.v"
+    ],
+    "fixtures": {
+        "testbench": "concat_mixed_widths_tb.v"
+    },
+    "note": "Concatenation of operands that are all different widths - scalar, byte, nibble, sized literal - where concat_slice.v joins two four-bit vectors and so cannot tell a tool that mislaid a width from one that did not. The four operands here are 1 + 8 + 4 + 3 into exactly 16 bits, and the second output builds eight bits from a slice of a wider signal, which is another operand kind. Behavioral because a field placed one bit out is still a legal concatenation filling the same output."
+}

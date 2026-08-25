@@ -1,0 +1,17 @@
+# One claim: the regenerated design behaves like the design it came from.
+#
+# Nothing here is structural. Both `inc` and `wide_inc` are written from the
+# same expression, and every plausible way of getting the width rule wrong -
+# sizing the literal to its operand, fixing the expression's width where it was
+# written, widening both targets alike - produces a module with the same three
+# outputs that parses and reparses. The disagreement is one row of values.
+#
+# No checked-in trace: the claim is that the round trip preserved behavior.
+
+runs: []
+
+expectations:
+  - id: regenerated_matches_rtl
+    use: trace_equal
+    left:  {from: simulate_reference,   run: reference}
+    right: {from: simulate_regenerated, run: regenerated}

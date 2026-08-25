@@ -1,0 +1,10 @@
+{
+    "top": "vhdl_event_edge",
+    "pipeline": "vhdl_to_verilog",
+    "sources": ["vhdl_event_edge.vhd"],
+    "fixtures": {
+        "testbench": "vhdl_event_edge_tb.v",
+        "expect_regenerated": "expect_regenerated.csv"
+    },
+    "note": "The `clk'event and clk = '1'` spelling of a VHDL clock edge, kept separate from vhdl_rising_edge because the two do not converge until the backend: vhdl2hif emits an FCall to hif_vhdl_rising_edge for one and an && over hif_vhdl_event and an === comparison for the other, which was measured by diffing the two HIF trees. hif2verilog therefore has two structurally different conditions to recognise as the same edge. The synchronous reset inside the edge is the second claim - it must not become asynchronous, and d is non-zero on both reset rows so a vanished reset shows as a value rather than as a coincidental zero."
+}
