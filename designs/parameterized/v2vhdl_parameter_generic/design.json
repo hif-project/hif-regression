@@ -1,0 +1,10 @@
+{
+    "top": "v2vhdl_parameter_generic",
+    "pipeline": "verilog_to_vhdl",
+    "sources": ["v2vhdl_parameter_generic.v"],
+    "fixtures": {
+        "testbench": "v2vhdl_parameter_generic_tb.v"
+    },
+    "note": "A width-generic Verilog module toward VHDL, and the design that finds hif-backend#93. hif2vhdl encodes the parameter as a 32-bit signed generic with a bit-string literal default and rewrites every port bound as to_integer(W - \"0000...0001\"); vhdl2hif accepts it and hif2verilog then aborts in sortParameters with \"Unable to get type of value\". Hand-written VHDL spelling the same thing as `generic (W : integer := 5)` round-trips through those two tools cleanly, so the defect is hif2vhdl's encoding and not hif2verilog's handling. W is 5 rather than a power of two so a silently substituted width is a different number, and `top` reads a[W-1] so the parameter must reach the body and not only the port list. Distinct from parameterized/parameterized_width.v, a bare .v on plain_roundtrip that never simulates.",
+    "expected_failure": {"issue": "hif-backend#93", "stage": "to_verilog"}
+}

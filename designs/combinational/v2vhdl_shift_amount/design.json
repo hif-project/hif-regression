@@ -1,0 +1,10 @@
+{
+    "top": "v2vhdl_shift_amount",
+    "pipeline": "verilog_to_vhdl",
+    "sources": ["v2vhdl_shift_amount.v"],
+    "fixtures": {
+        "testbench": "v2vhdl_shift_amount_tb.v"
+    },
+    "note": "Verilog logical shifts toward VHDL, and the design that finds hif-backend#94. hif2vhdl routes the operand through to_integer and then applies `sll` to the result, producing VHDL that is invalid twice over: to_unsigned is called with a single std_logic_vector where numeric_std declares (natural, natural), and sll is applied to an integer where VHDL defines it on array types. vhdl2hif accepts the file and exits 0 - so reparsing is not evidence the VHDL is well formed - and hif2verilog then aborts in getBestCandidate, unable to resolve the call. Both shift directions are in one fixture because they are one lowering and one defect. Distinct from combinational/shifter.v, a bare .v on plain_roundtrip whose question is whether regenerated Verilog reparses.",
+    "expected_failure": {"issue": "hif-backend#94", "stage": "to_verilog"}
+}
