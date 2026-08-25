@@ -1,0 +1,10 @@
+{
+    "top": "vhdl_hierarchy",
+    "pipeline": "vhdl_to_verilog",
+    "sources": ["vhdl_hierarchy_cell.vhd", "vhdl_hierarchy.vhd"],
+    "fixtures": {
+        "testbench": "vhdl_hierarchy_tb.v",
+        "expect_regenerated": "expect_regenerated.csv"
+    },
+    "note": "The corpus's first design in which a child instance survives to the emitter. Every other hierarchical design here is Verilog, and verilog2hif flattens instances into the parent before the backend runs - regenerate small_hierarchy and only `top` comes out, its children inlined as procedural statements. The VHDL path keeps the instances, so this is the only route that reaches instance emission at all. The property under test is named port association: u1's map is written q, r, p against a component declared p, q, r, and the cell is non-commutative, so a map read positionally or re-sorted into declaration order wires u1 the way u0 is wired and y1 tracks y0."
+}

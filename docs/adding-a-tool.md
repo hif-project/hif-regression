@@ -26,7 +26,15 @@ mytool:
 
 `command[0]` is a binary *name*, resolved via `--bin-dir` then `PATH` — never a
 path. `artifact` may contain a glob when the tool's naming is not fully
-predictable; it must resolve to exactly one file.
+predictable. It must match at least one file; when it matches several they are
+all the artifact, and every one of them has to be non-empty. That is not a
+loophole — hif2verilog writes one `.v` per HIF DesignUnit, so a design whose
+hierarchy reached the emitter is spread across several files and taking one
+would drop the rest while still reparsing cleanly.
+
+Declaring `{input}` means your tool takes exactly one file, and the runner
+refuses to hand it a multi-file artifact rather than choosing for you. Use
+`{inputs}` if it accepts a list.
 
 Then reference it from a pipeline. No code changes.
 

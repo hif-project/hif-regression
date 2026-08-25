@@ -1,0 +1,10 @@
+{
+    "top": "vhdl_aggregate_others",
+    "pipeline": "vhdl_to_verilog",
+    "sources": ["vhdl_aggregate_others.vhd"],
+    "fixtures": {
+        "testbench": "vhdl_aggregate_others_tb.v",
+        "expect_regenerated": "expect_regenerated.csv"
+    },
+    "note": "The corpus's first VHDL aggregate. No open issue: `(5 => '1', 3 => '1', others => '0')` currently regenerates correctly as 8'b00101000, and this design exists to keep it that way. The aggregate states a constant by bit position where a string literal states it as a pattern, so it is the form that breaks if position and pattern order are confused in the lowering - which is exactly what hif-backend#91 does to an ascending range, by a different route. Distinct from vhdl_ascending_literal: that one holds a string literal of an ascending type and fails on the literal's size, this one holds a positional aggregate of a descending type and passes."
+}

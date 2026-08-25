@@ -77,25 +77,49 @@ def check_artifact(path: Path):
     return True, None
 
 
-def resolve_artifact(template: str, context: dict) -> Path:
+def resolve_artifacts(template: str, context: dict) -> list:
+    """Resolve an operation's declared artifact to the list of files it names.
+
+    A glob may legitimately match more than one file: hif2verilog emits one
+    `.v` per HIF DesignUnit, so a design whose hierarchy survives to the
+    emitter - every VHDL design with a component instantiation - produces a
+    file per entity. All of them together are the artifact; picking one would
+    silently drop the rest.
+
+    Zero matches is still an error. So is feeding a multi-file artifact to a
+    tool that takes a single `{input}`, which is where the old "exactly 1"
+    rule was actually load-bearing - see run_step.
+    """
     pattern = template.format(**context)
     if "*" in pattern or "?" in pattern:
         matches = sorted(Path(p) for p in globmod.glob(pattern))
-        if len(matches) != 1:
+        if not matches:
             raise ArtifactResolutionError(
-                f"artifact pattern '{pattern}' matched {len(matches)} file(s), expected exactly 1"
+                f"artifact pattern '{pattern}' matched no files"
             )
-        return matches[0]
-    return Path(pattern)
+        return matches
+    return [Path(pattern)]
 
 
 def run_step(tool_id: str, tools: dict, bin_dir, inputs: list, workdir: Path, name: str, timeout_s: int):
     tool_def = tools[tool_id]
+    template = tool_def["command"][1:]
+    # `{input}` is singular by contract. A tool that declares it cannot be
+    # handed a multi-file artifact, and guessing which of them was meant is
+    # exactly what the artifact rule exists to prevent - so this is the one
+    # place that still refuses. Tools taking `{inputs}` are unaffected.
+    # Checked before the workdir is created: an authoring mistake should not
+    # leave a directory behind as a side effect of being reported.
+    if len(inputs) != 1 and any("{input}" in tok for tok in template):
+        raise ManifestError(
+            f"tool '{tool_id}' takes a single {{input}} but received {len(inputs)} files "
+            f"({', '.join(p.name for p in inputs)}); it needs {{inputs}} to accept them all"
+        )
     workdir.mkdir(parents=True, exist_ok=True)
-    context = {"input": str(inputs[0]), "workdir": str(workdir), "name": name}
+    context = {"input": str(inputs[0]) if inputs else "", "workdir": str(workdir), "name": name}
     binary = find_tool(tool_def["command"][0], bin_dir)
     argv = [binary] + expand_argv(
-        tool_def["command"][1:],
+        template,
         context,
         {"inputs": [str(p) for p in inputs]},
         f"tool '{tool_id}'",
@@ -103,13 +127,18 @@ def run_step(tool_id: str, tools: dict, bin_dir, inputs: list, workdir: Path, na
 
     r = run_tool(argv, cwd=workdir, timeout_s=timeout_s)
 
-    artifact_path = None
+    artifact_paths = None
     artifact_ok = False
     artifact_error = None
     if not r["timed_out"] and r["returncode"] == 0:
         try:
-            artifact_path = resolve_artifact(tool_def["artifact"], context)
-            artifact_ok, artifact_error = check_artifact(artifact_path)
+            artifact_paths = resolve_artifacts(tool_def["artifact"], context)
+            # Every file the artifact names has to stand on its own. One empty
+            # `.v` among several is still a design unit that was lost.
+            for path in artifact_paths:
+                artifact_ok, artifact_error = check_artifact(path)
+                if not artifact_ok:
+                    break
         except ArtifactResolutionError as exc:
             artifact_error = str(exc)
 
@@ -122,7 +151,7 @@ def run_step(tool_id: str, tools: dict, bin_dir, inputs: list, workdir: Path, na
     # anyway - but that makes "a rejected artifact is never consumed" a
     # consequence of the loop's control flow rather than a property of the
     # data. Returning None keeps it true regardless.
-    return status, (artifact_path if artifact_ok else None), record
+    return status, (artifact_paths if artifact_ok else None), record
 
 
 def _worst_status(stages: dict) -> str:
@@ -145,7 +174,7 @@ def resolve_inputs(op, artifacts, previous_id, sources, pipeline_name):
                 f"pipeline '{pipeline_name}', operation '{op['id']}': "
                 f"its predecessor '{previous_id}' produced no usable artifact"
             )
-        return [artifacts[previous_id]]
+        return list(artifacts[previous_id])
 
     resolved = []
     for ref in refs:
@@ -159,7 +188,7 @@ def resolve_inputs(op, artifacts, previous_id, sources, pipeline_name):
                 f"pipeline '{pipeline_name}', operation '{op['id']}': "
                 f"references '{ref_id}', which produced no usable artifact"
             )
-        resolved.append(artifacts[ref_id])
+        resolved.extend(artifacts[ref_id])
     return resolved
 
 
@@ -215,12 +244,12 @@ def run_pipeline(
 
         if kind == "tool":
             inputs = resolve_inputs(op, artifacts, previous_id, sources, pipeline_name)
-            status, artifact_path, record = run_step(
+            status, artifact_paths, record = run_step(
                 op["use"], registries["tools"], bin_dir, inputs, op_work, name, timeout_s
             )
             record["kind"] = "tool"
             record["phase"] = "execute"
-            artifacts[op_id] = artifact_path
+            artifacts[op_id] = artifact_paths
         elif kind == "simulation":
             resolved = dict(op, _runs=_from_spec(op.get("runs", []), design, "runs", op_id))
             status, record = run_simulation(

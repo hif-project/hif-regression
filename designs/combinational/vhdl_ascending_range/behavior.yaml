@@ -1,0 +1,38 @@
+# One claim: in the Verilog hif2verilog regenerates from this VHDL, index 0 of
+# an ascending vector still names the leftmost element. It does not - see
+# hif-backend#91 - so this design is a declared expected failure at `validate`.
+#
+# No VHDL simulator exists here, so the expected trace is computed by hand from
+# the VHDL rather than compared against a reference run of the source. The
+# design is first <= a(0), last <= a(3) on a port declared (0 to 3), so `first`
+# is the leftmost bit of the driven pattern and `last` the rightmost.
+#
+#   1000  a=1000 -> first=1 last=0
+#   2000  a=0001 -> first=0 last=1
+#   3000  a=1001 -> first=1 last=1
+#   4000  a=0110 -> first=0 last=0
+#
+# Rows one and two are the discriminating pair and they are mirrors on purpose.
+# Under the defect the two ends swap, so row one alone produces exactly what
+# row two should produce; a reader seeing only one of them could believe the
+# outputs were merely named the wrong way round. Both rows present, the swap
+# cannot be re-labelled away - whichever naming you choose, one of the two rows
+# is wrong.
+#
+# Row three sets both ends, which rows one and two cannot distinguish from a
+# single shared driver: with first and last always opposite, one signal feeding
+# both through an inverter reproduces them. 1001 requires them to be
+# independent reads.
+#
+# Row four clears both ends and sets the two middle bits, so an output reading
+# a middle bit, or an or-reduction of the whole vector, gives 1 where the
+# design gives 0. Rows one to three never leave the middle bits alone and set
+# both ends to zero at once, so this is the only row that pins it.
+
+runs: []
+
+expectations:
+  - id: regenerated_matches_vhdl
+    use: expected_trace
+    left:     {from: simulate_regenerated, run: regenerated}
+    expected: {fixture: expect_regenerated}

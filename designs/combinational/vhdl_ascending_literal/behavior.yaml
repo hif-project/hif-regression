@@ -1,0 +1,40 @@
+# One claim: the constant in the Verilog hif2verilog regenerates from this VHDL
+# still holds "1100". It does not - see hif-backend#91 - so this design is a
+# declared expected failure at `validate`.
+#
+# No VHDL simulator exists here, so the expected trace is computed by hand from
+# the VHDL rather than compared against a reference run of the source. VHDL's
+# `and` pairs two equal-length vectors element by element from the left, so the
+# mask keeps a's high half and drops its low half.
+#
+#   1000  a=1111 -> y=1100
+#   2000  a=0011 -> y=0000
+#   3000  a=1010 -> y=1000
+#   4000  a=0101 -> y=0100
+#
+# Row one drives all ones, so y is the mask itself and the row reads the
+# constant out directly. Nothing else in the trace states its value that
+# plainly, and under the defect it is 0000 - the whole mask gone, not a bit of
+# it moved.
+#
+# Rows three and four are the two mixed patterns, and they are not each other
+# repeated. Each has one bit in the half the mask keeps and one in the half it
+# drops, at different positions, so between them all four bit positions are
+# exercised in both roles. "1100" is not a palindrome, which is what makes them
+# catch a mask that arrived reversed: a reversed mask gives 0010 and 0001 here,
+# where the design gives 1000 and 0100. Row one cannot see that - 1111 masked
+# by 1100 or by 0011 differs, but a reversal of an all-ones input is still all
+# ones, so the distinction lives only in these two rows.
+#
+# Row two is the mask's complement and the control. Its correct answer is all
+# zeros, which is also what the defect produces, so it is the one row that
+# stays correct here - and that is its job: it says the mask has nothing set in
+# a's low half, which the other three rows cannot establish on their own.
+
+runs: []
+
+expectations:
+  - id: regenerated_matches_vhdl
+    use: expected_trace
+    left:     {from: simulate_regenerated, run: regenerated}
+    expected: {fixture: expect_regenerated}
