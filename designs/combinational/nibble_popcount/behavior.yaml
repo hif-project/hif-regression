@@ -1,0 +1,74 @@
+# A fault location shared by two uses.
+#
+# popcount4_return is the function's result: one location, reached by both call
+# sites. lo and hi are the two assignments that receive it. All three are
+# distinct signals, so {signal, bit, type} names each unambiguously - no `line`
+# needed here.
+#
+# The claim is that the shared location really is shared:
+#
+#   SA1 on popcount4_return bit 0  ->  bit 0 forced in BOTH results
+#   SA1 on lo bit 0                ->  bit 0 forced in lo only
+#
+#   a          golden lo/hi   SA1@return    SA1@lo
+#   00000000   000 000        001 001       001 000
+#   11111111   100 100        101 101       101 100
+#   00010111   011 001        011 001       011 001
+#   11110000   000 100        001 101       001 100
+#
+# The two runs agree on `lo` in every row and disagree on `hi` in three of the
+# four, which is exactly the shape the design is for. An instrumentation that
+# injected at the call sites rather than inside the function would make the
+# shared location behave like a per-call one, and the two runs would then be
+# identical - valid RTL, and a different fault model. The
+# return_and_lo_faults_differ expectation asserts that they are not identical,
+# so that claim is checked directly rather than left to the oracles to imply.
+#
+# Row three is the one where they agree on `hi` too: that nibble's population is
+# already odd, so bit 0 is set and forcing it changes nothing. It is the control
+# - a fault visible on every row would be consistent with an injection that
+# ignored the data, and this row shows the injection is a stuck-at rather than
+# an unconditional overwrite.
+#
+# Two call sites are load-bearing. With one, a fault on the function's result
+# and a fault on the assignment receiving it produce identical traces and the
+# design would prove nothing.
+
+runs:
+  - {id: golden, params: {mut: 0}}
+
+  - id: sa1_return_bit0
+    params:
+      mut: {from: enumerate, array: faults, where: {signal: popcount4_return, bit: 0, type: stuck-at-1}, take: id}
+
+  - id: sa1_lo_bit0
+    params:
+      mut: {from: enumerate, array: faults, where: {signal: lo, bit: 0, type: stuck-at-1}, take: id}
+
+expectations:
+  - id: golden_matches_rtl
+    use: trace_equal
+    left:  {from: simulate_reference,    run: reference}
+    right: {from: simulate_instrumented, run: golden}
+
+  - id: sa1_return_bit0_expected_trace
+    use: expected_trace
+    left:     {from: simulate_instrumented, run: sa1_return_bit0}
+    expected: {fixture: expect_sa1_return_bit0}
+
+  - id: sa1_lo_bit0_expected_trace
+    use: expected_trace
+    left:     {from: simulate_instrumented, run: sa1_lo_bit0}
+    expected: {fixture: expect_sa1_lo_bit0}
+
+  # The shared location is not a per-call one: the same fault type at the
+  # function's result and at one call's assignment behave differently.
+  - id: return_and_lo_faults_differ
+    use: trace_differs
+    left:  {from: simulate_instrumented, run: sa1_return_bit0}
+    right: {from: simulate_instrumented, run: sa1_lo_bit0}
+
+  - id: sa1_return_bit0_detected
+    use: trace_differs
+    left:  {from: simulate_instrumented, run: sa1_return_bit0}
+    right: {from: simulate_reference,    run: reference}
