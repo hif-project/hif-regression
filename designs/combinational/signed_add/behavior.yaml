@@ -1,0 +1,20 @@
+# One claim: the regenerated design behaves like the design it came from.
+#
+# This expectation currently FAILS, deliberately, on hif-backend#81. The
+# regenerated design widens with `{1'b0, a} + {1'b0, b}`, so every row whose
+# sum is negative reports a large positive number instead: -3 + 2 gives 15
+# where the source gives -1, and 7 + -8 the same.
+#
+# It is a behavioral expectation because there is nothing else to catch it.
+# The regenerated Verilog is valid, exits 0 and reparses cleanly; the only
+# difference is the arithmetic.
+#
+# Goes green when #81 is fixed, with no change here.
+
+runs: []
+
+expectations:
+  - id: regenerated_matches_rtl
+    use: trace_equal
+    left:  {from: simulate_reference,   run: reference}
+    right: {from: simulate_regenerated, run: regenerated}

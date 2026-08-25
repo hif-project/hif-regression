@@ -1,0 +1,8 @@
+{
+    "top": "multiple_wire_drivers",
+    "pipeline": "behavioral_roundtrip",
+    "sources": ["multiple_wire_drivers.v"],
+    "fixtures": {"testbench": "multiple_wire_drivers_tb.v"},
+    "note": "A net with two continuous drivers - two devices sharing a bus. CURRENTLY FAILS, DELIBERATELY, on hif-backend#88: the net regenerates as one `output reg` written by two always blocks, so the last process to run wins and a bus driven by exactly one device reads zzzz. Behavioral because the regenerated module keeps the same ports and the same two expressions and reparses cleanly; what it lost is that bus was a net, which no parse can check. replicated_z_literal covers one driver releasing a pin and passes, and the VHDL-sourced vhdl_shared_bus passes, so the gap is specific to the Verilog multi-driver path.",
+    "expected_failure": {"issue": "hif-backend#88", "stage": "validate"}
+}

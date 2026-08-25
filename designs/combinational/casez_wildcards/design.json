@@ -1,0 +1,8 @@
+{
+    "top": "casez_wildcards",
+    "pipeline": "behavioral_roundtrip",
+    "sources": ["casez_wildcards.v"],
+    "fixtures": {"testbench": "casez_wildcards_tb.v"},
+    "note": "A priority encoder written with casez. CURRENTLY FAILS, DELIBERATELY, on hif-backend#84: hif2verilog regenerates it as a plain `case` with the `?` bits spelled `z`, so under exact matching every wildcard alternative is unreachable and five of eight rows fall through to the default. Behavioral because the output is valid Verilog that exits 0 and reparses cleanly - both keywords are legal around the same alternatives. Two rows need no wildcard and act as controls, so the failure reads as 'the wildcards are gone' rather than as a scrambled encoder.",
+    "expected_failure": {"issue": "hif-backend#84", "stage": "validate"}
+}
