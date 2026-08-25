@@ -1,0 +1,18 @@
+# One claim: the regenerated design behaves like the design it came from.
+#
+# The regenerated process is currently the source verbatim - the Member targets
+# survive as `q[0] <= d0` - so a reparse would confirm nothing that the source
+# did not already say. What can go wrong here is a splitting pass taking the
+# wrong index, or dropping the dependency between q3 and q2, and that produces
+# a process which still parses and still writes four bits.
+#
+# No checked-in trace: the claim is that the round trip preserved behavior. The
+# expected rows are derived from the design in the testbench comment.
+
+runs: []
+
+expectations:
+  - id: regenerated_matches_rtl
+    use: trace_equal
+    left:  {from: simulate_reference,   run: reference}
+    right: {from: simulate_regenerated, run: regenerated}
