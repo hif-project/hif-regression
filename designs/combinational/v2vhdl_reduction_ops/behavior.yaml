@@ -1,0 +1,32 @@
+# One claim: a full excursion through VHDL and back preserves behaviour exactly.
+# It cannot even be attempted today - hif2vhdl aborts before writing any VHDL,
+# see hif-backend#92 - so this design is a declared expected failure at
+# `to_vhdl`, the operation that runs hif2vhdl.
+#
+# No values are checked in. The claim is about the excursion rather than about
+# particular numbers, so the reference simulation of the untouched RTL supplies
+# the expected trace, the way behavioral_roundtrip does.
+#
+# The stimulus is written for the day #92 lands, since until then the pipeline
+# stops three operations before the first simulation. Five patterns separate the
+# three reductions from each other and from any constant:
+#
+#   0000  the only row where any_one is 0
+#   1111  the only row where all_ones is 1
+#   1000  one bit set: odd parity, and all_ones 0 while any_one is 1
+#   1100  two bits set: even parity
+#   1110  three bits set: odd parity
+#
+# The last two are the pair that pins parity specifically. They agree on
+# any_one and on all_ones and differ only in parity, so a parity output stuck
+# at either value, or confused with one of the other two reductions, moves one
+# of them. Without both rows an even-parity result and a zero constant are
+# indistinguishable.
+
+runs: []
+
+expectations:
+  - id: roundtripped_matches_rtl
+    use: trace_equal
+    left:  {from: simulate_reference,    run: reference}
+    right: {from: simulate_roundtripped, run: roundtripped}

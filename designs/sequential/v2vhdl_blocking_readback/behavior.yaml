@@ -1,0 +1,41 @@
+# One claim: a full excursion through VHDL and back preserves behaviour exactly
+# - the twice-crossed Verilog and the untouched original produce identical
+# traces under the same testbench.
+#
+# No values are checked in. The claim is about the excursion, not about any
+# particular numbers, and freezing this testbench's stimulus into the corpus as
+# though it were the specification would be a weaker statement rather than a
+# stronger one - the reasoning behavioral_roundtrip uses.
+#
+# What the stimulus has to do is make a wrong lowering visible. The design
+# computes acc = a ^ b and then q = acc ^ a, both blocking, so q is b at every
+# edge. Lowered onto VHDL signals instead of a variable, the second statement
+# would read the previous edge's acc and q would be that xor the current a.
+#
+# Two things make that observable, and both were measured rather than assumed.
+#
+# The process is clocked. In a combinational lowering the intermediate lands in
+# the process's own sensitivity list, so a stale read re-triggers the process
+# and converges on the same fixed point: the first version of this design was
+# combinational and a stale-read mutation left its trace completely unchanged.
+# A clocked process runs once per edge and does not re-trigger, so the stale
+# value is still there at the sample.
+#
+# Adjacent edges never share an intermediate. A stale read is self-consistent
+# wherever acc did not change, so acc runs 0110, 1100, 1111, 1100 - each
+# different from the one before it. Under the stale-read mutation every one of
+# the four rows moves, which is what makes the claim discriminating on the
+# whole trace rather than at one lucky point.
+#
+# Row one additionally reports xxxx for q under the mutation, because the first
+# edge has no previous intermediate to read. That is the initial-state
+# signature of the defect and it distinguishes a stale read from a merely
+# permuted one.
+
+runs: []
+
+expectations:
+  - id: roundtripped_matches_rtl
+    use: trace_equal
+    left:  {from: simulate_reference,    run: reference}
+    right: {from: simulate_roundtripped, run: roundtripped}

@@ -1,0 +1,41 @@
+# One claim: a full excursion through VHDL and back preserves behaviour exactly.
+# It does not complete today - hif2verilog aborts on the VHDL hif2vhdl wrote,
+# see hif-backend#94 - so this design is a declared expected failure at
+# `to_verilog`.
+#
+# The stage is three operations after the tool at fault, and that is the point
+# worth recording: hif2vhdl exits 0 having written invalid VHDL, and vhdl2hif
+# reparses it and exits 0 too. Nothing before hif2verilog objects. A structural
+# pipeline ending at the reparse would call this design a PASS.
+#
+# No values are checked in - the reference simulation of the untouched RTL
+# supplies them. The stimulus is written for the day #94 lands.
+#
+# a is 10010011 throughout, and the four rows vary only the amount:
+#
+#   n=0  l and r both equal a
+#   n=1  l=00100110  r=01001001
+#   n=3  l=10011000  r=00010010
+#   n=7  l=10000000  r=00000001
+#
+# n=0 is the row a lowering that always shifts by a fixed amount fails, and it
+# is the only row on which the two outputs agree - so it also pins that l and r
+# are separate expressions rather than one signal driving both.
+#
+# n=1 and n=3 are both partial shifts, and they are not the same claim: with
+# n=1 exactly one bit leaves the vector at each end, with n=3 three do, so an
+# off-by-one in the amount moves n=3 to a value n=1 cannot produce.
+#
+# n=7 shifts all but one bit out, so l and r each retain a single bit of a -
+# the top and bottom bit respectively. It is the row that separates a shift
+# from a rotate: a rotate by 7 of 10010011 fills the vector, a shift leaves
+# six zeros. a is not a palindrome, so the two also disagree bit for bit rather
+# than only in population count.
+
+runs: []
+
+expectations:
+  - id: roundtripped_matches_rtl
+    use: trace_equal
+    left:  {from: simulate_reference,    run: reference}
+    right: {from: simulate_roundtripped, run: roundtripped}

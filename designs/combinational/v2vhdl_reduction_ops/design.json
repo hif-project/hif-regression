@@ -1,0 +1,10 @@
+{
+    "top": "v2vhdl_reduction_ops",
+    "pipeline": "verilog_to_vhdl",
+    "sources": ["v2vhdl_reduction_ops.v"],
+    "fixtures": {
+        "testbench": "v2vhdl_reduction_ops_tb.v"
+    },
+    "note": "Verilog reduction operators toward VHDL, and the design that finds hif-backend#92. hif2vhdl aborts on ORRD, ANDRD and XORRD alike - \"This operator should be managed in refinement steps\", exit 134, with no .vhd written - while hif2verilog prints all three correctly from the same HIF, so the gap is in the VHDL backend and not in the representation. All three are in one fixture because they are one defect at one abort site, not three; the pipeline stops at the first non-PASS, so only the first is reached today, and after #92 the design becomes a behavioral check of all three through VHDL and back. Distinct from combinational/reduction_ops, whose question is Muffin fault instrumentation on the Verilog path.",
+    "expected_failure": {"issue": "hif-backend#92", "stage": "to_vhdl"}
+}
