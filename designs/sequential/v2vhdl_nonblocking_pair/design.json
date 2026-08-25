@@ -1,0 +1,11 @@
+{
+    "top": "v2vhdl_nonblocking_pair",
+    "pipeline": "verilog_to_vhdl",
+    "sources": [
+        "v2vhdl_nonblocking_pair.v"
+    ],
+    "fixtures": {
+        "testbench": "v2vhdl_nonblocking_pair_tb.v"
+    },
+    "note": "The complement of sequential/v2vhdl_blocking_readback: where that one needs a VHDL variable to reproduce Verilog's immediate assignment, this one needs plain signal assignments and nothing more. Both statements are non-blocking, so q receives p's previous contents and the pair is a two-stage shift register; a lowering that makes either assignment immediate collapses it to one stage and q equals p. VHDL signal semantics already match, so this is the case that must be left alone rather than translated - which is its own way to get wrong. d is one-hot and advances every step so the one-edge lag shows on every row."
+}

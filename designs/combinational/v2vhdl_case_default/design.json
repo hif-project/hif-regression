@@ -1,0 +1,9 @@
+{
+    "top": "v2vhdl_case_default",
+    "pipeline": "verilog_to_vhdl",
+    "sources": ["v2vhdl_case_default.v"],
+    "fixtures": {
+        "testbench": "v2vhdl_case_default_tb.v"
+    },
+    "note": "A Verilog case with a default toward VHDL. No open issue: hif2vhdl emits WHEN OTHERS and the full circle closes, and this design exists to keep it that way. The mirror of combinational/vhdl_case, and a different mapping rather than the same one twice: VHDL always has an others to carry across, whereas a Verilog case need not have a default at all, so going this way the backend must synthesise the exhaustiveness VHDL requires instead of preserving something already present. The stimulus ends on an x selector, which is what separates a real WHEN OTHERS from an explicit WHEN \"11\" - both serve 2'b11, only OTHERS also serves a selector that is not a defined value."
+}

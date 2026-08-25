@@ -5,7 +5,7 @@ need to open another file, or read an existing design to work out the pattern.
 
 - [Decide the shape](#decide-the-shape)
 - [The simplest case: parse and round-trip only](#the-simplest-case-parse-and-round-trip-only)
-- [Adding stimulus: the three behavioral shapes](#adding-stimulus-the-three-behavioral-shapes)
+- [Adding stimulus: the four behavioral shapes](#adding-stimulus-the-four-behavioral-shapes)
 - [design.json](#designjson)
 - [The testbench](#the-testbench)
 - [behavior.yaml](#behavioryaml)
@@ -46,7 +46,7 @@ designs/combinational/my_design.v
 A `.vhd` design cannot be a bare file: discovery globs `*.v`, so VHDL always
 needs directory form with an explicit `sources` list (below).
 
-## Adding stimulus: the three behavioral shapes
+## Adding stimulus: the four behavioral shapes
 
 A design with stimulus moves to directory form **inside its category**:
 
@@ -84,6 +84,28 @@ Derive the trace from the source semantics and then confirm the simulator
 agrees. Capturing simulator output and blessing it proves only that the
 simulator is deterministic.
 
+### `verilog_to_vhdl` — Verilog source, all the way round and back
+
+The Verilog-to-VHDL direction. There is no VHDL simulator here, so the emitted
+VHDL cannot be run — but it can be brought back: Verilog → HIF → VHDL → HIF →
+Verilog, then the twice-crossed Verilog is simulated against the untouched
+original under the same testbench and required to match. Like
+`behavioral_roundtrip` it needs no checked-in oracle, because the claim is "the
+excursion through VHDL preserved behaviour".
+
+Do not be tempted to stop at the VHDL and call the reparse a check. `vhdl2hif`
+is more permissive than the VHDL LRM — it accepts a plain `variable` in an
+architecture declarative region, where VHDL allows only `shared variable`, and
+it accepts a `to_unsigned` call that resolves to no `numeric_std` overload — so
+"the VHDL reparsed" is much weaker than it sounds. Both of those were measured,
+not assumed; see hif-backend#94.
+
+The cost is that a failure names one of four tools, which is what the stage ids
+are for: `to_vhdl` is `hif2vhdl`, `to_verilog` is `hif2verilog` on the
+twice-crossed HIF, and those are genuinely different defects. Get the
+`expected_failure` stage right — hif-backend#93 and #94 both exit 0 from
+`hif2vhdl` and fail two operations later.
+
 ### `muffin_behavioral` — fault instrumentation
 
 Everything above plus Muffin: parse, enumerate faults, instrument, regenerate,
@@ -109,7 +131,7 @@ fault-selection rules, which are the fiddly part.
 | key | when | notes |
 |---|---|---|
 | `top` | required in directory form | top-level module/entity name |
-| `pipeline` | when it differs from the category default | see the three above |
+| `pipeline` | when it differs from the category default | see the four above |
 | `sources` | **required in directory form** | without it the testbench is picked up as a design source |
 | `fixtures` | when the pipeline references them | maps a *role* (`testbench`, `expect_*`) to a file, so one pipeline serves designs whose files are named differently |
 | `note` | always, in practice | what the design is for. It is printed next to any failure, so write it for whoever hits that |
