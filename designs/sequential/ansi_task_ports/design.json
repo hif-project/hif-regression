@@ -1,0 +1,11 @@
+{
+    "top": "ansi_task_ports",
+    "pipeline": "behavioral_roundtrip",
+    "sources": [
+        "ansi_task_ports.v"
+    ],
+    "fixtures": {
+        "testbench": "ansi_task_ports_tb.v"
+    },
+    "note": "The passing half of the ANSI-task-header coverage for hif-frontend#25, which refused every ANSI task header and the non-ANSI inout declaration alike. It also fixes where hif-frontend#31 begins: verilog_task_arguments carries the same header and is an expected failure because its register is written directly in one branch and through the task's inout argument in the other, and that mix is what drops the write-back. Here the clear is a task argument too, so the register is only ever written through the call, and the accumulator counts. Behavioral because a lost copy-in or copy-back leaves a module that compiles and reparses with its accumulator stuck at zero."
+}

@@ -1,0 +1,17 @@
+# One claim: the regenerated design behaves like the design it came from.
+#
+# There is nothing structural to see here: a dynamic bit-select regenerates as
+# a dynamic bit-select, and an index folded to a constant or taken from the
+# wrong end is still a one-bit expression that reparses. What separates them is
+# which bit comes out, and the last two rows of the trace are chosen so that
+# the two ends of the vector disagree.
+#
+# No checked-in trace: the claim is that the round trip preserved behavior.
+
+runs: []
+
+expectations:
+  - id: regenerated_matches_rtl
+    use: trace_equal
+    left:  {from: simulate_reference,   run: reference}
+    right: {from: simulate_regenerated, run: regenerated}

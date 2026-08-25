@@ -1,0 +1,18 @@
+# One claim: the regenerated design behaves like the design it came from.
+#
+# Two things have to survive for that to hold, and neither is visible to a
+# reparse. The replication's operands have to keep their width, or the
+# regenerated design will not elaborate at all - verilog2hif accepts an unsized
+# concatenation operand where a simulator does not. And the released value has
+# to still be Z rather than an ordinary logic level, which only shows up
+# against the testbench's own driver on the rows where this design has let go.
+#
+# No checked-in trace: the claim is that the round trip preserved behavior.
+
+runs: []
+
+expectations:
+  - id: regenerated_matches_rtl
+    use: trace_equal
+    left:  {from: simulate_reference,   run: reference}
+    right: {from: simulate_regenerated, run: regenerated}

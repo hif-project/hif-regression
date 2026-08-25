@@ -1,0 +1,16 @@
+# One claim: the regenerated design behaves like the design it came from.
+#
+# A latch and the combinational logic it turns into when the conditional is
+# completed are both valid Verilog with the same ports, and both reparse. The
+# difference is entirely in the rows where `en` is low and `d` moves, which is
+# what the stimulus spends most of its steps on.
+#
+# No checked-in trace: the claim is that the round trip preserved behavior.
+
+runs: []
+
+expectations:
+  - id: regenerated_matches_rtl
+    use: trace_equal
+    left:  {from: simulate_reference,   run: reference}
+    right: {from: simulate_regenerated, run: regenerated}

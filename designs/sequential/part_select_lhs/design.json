@@ -1,0 +1,11 @@
+{
+    "top": "part_select_lhs",
+    "pipeline": "behavioral_roundtrip",
+    "sources": [
+        "part_select_lhs.v"
+    ],
+    "fixtures": {
+        "testbench": "part_select_lhs_tb.v"
+    },
+    "note": "Slice assignment targets, the third of the three shapes an assignment target can take here: bit_select_assign covers the continuous bit-select and its partial-driver lowering, procedural_bit_select the Member inside a process, and this one the Slice. hif-frontend#9's fix had to unwrap both Member and Slice through getTerminalPrefix. The fields are three bits over five rather than two halves, so an off-by-one in either bound moves bits across the boundary instead of landing back on itself. Behavioral because a shifted bound is a legal slice that still writes the whole register."
+}
