@@ -1,0 +1,11 @@
+{
+    "top": "blocking_dependency",
+    "pipeline": "behavioral_roundtrip",
+    "sources": [
+        "blocking_dependency.v"
+    ],
+    "fixtures": {
+        "testbench": "blocking_dependency_tb.v"
+    },
+    "note": "Intra-process visibility of a blocking assignment: the second statement reads what the first just wrote. Every other clocked process in the corpus is non-blocking - pipeline3 deliberately reads previous values, multi_reg writes independent registers - so nothing here stated what `=` makes visible within one edge. Behavioral because swapping either statement to `<=` leaves a process with the same two statements writing the same two registers, one cycle apart; the stimulus steps d unevenly so a lagging b cannot coincide with a correct one."
+}

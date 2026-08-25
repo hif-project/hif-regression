@@ -1,0 +1,11 @@
+{
+    "top": "repeat_event",
+    "pipeline": "behavioral_roundtrip",
+    "sources": [
+        "repeat_event.v"
+    ],
+    "fixtures": {
+        "testbench": "repeat_event_tb.v"
+    },
+    "note": "Regression for hif-backend#47. HIF has no repeat, so `repeat (3) @(posedge clk)` is lowered to a for loop over an index hif2verilog declares and initialises itself; getting that wrong leaves a legal loop that runs the wrong number of times. Behavioral because the wrong count is valid Verilog - the observable is the pulse period, four clocks here, which is the repeat count plus the release edge. The accumulating pulse counter keeps a period that drifted rather than changed outright from matching."
+}

@@ -1,0 +1,10 @@
+{
+    "top": "vhdl_user_function",
+    "pipeline": "vhdl_to_verilog",
+    "sources": ["vhdl_user_function.vhd"],
+    "fixtures": {
+        "testbench": "vhdl_user_function_tb.v",
+        "expect_regenerated": "expect_regenerated.csv"
+    },
+    "note": "The corpus's first VHDL function, and the VHDL route into hif-backend#57 - a function emitted with its header and without its body. Distinct from user_function.v: a VHDL function returns with `return` where a Verilog one assigns to its own name, so the two arrive at the emitter as different bodies. The return is an early one with a reachable statement after it, not the tail of an if/else, so the `disable` hif-backend#63 lowers it to is load-bearing: dropped, the statement below overwrites the answer on exactly the rows where the early return fires. Verified by deleting that disable from the regenerated Verilog."
+}

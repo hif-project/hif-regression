@@ -1,0 +1,4 @@
+{
+    "note": "A named block disabled to break out of a loop - the first-set-bit scan. CURRENTLY FAILS, DELIBERATELY, on hif-backend#85, which drops the named block and its disable so the loop runs to completion and the scan reports the last set bit rather than the first. That loss is not yet observable: hif-backend#80 stops the regenerated file parsing first, with the comma-expression loop header for_loop_integer.v covers, so the recorded stage is the reparse. When #80 lands this design will fail at a later stage and be flagged as not the documented failure, which is the cue to move it to a behavioral pipeline that can see #85 directly.",
+    "expected_failure": {"issue": "hif-backend#85", "stage": "reparse"}
+}

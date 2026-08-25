@@ -1,0 +1,11 @@
+{
+    "top": "slice_dynamic_index",
+    "pipeline": "behavioral_roundtrip",
+    "sources": [
+        "slice_dynamic_index.v"
+    ],
+    "fixtures": {
+        "testbench": "slice_dynamic_index_tb.v"
+    },
+    "note": "A bit-select indexed by a signal rather than a literal - the one index kind no tool can resolve while building the tree, and the only one the rest of the corpus does not have. concat_slice, the assignment-target designs and the reduction fixtures all index with constants. Behavioral because a folded or reversed index is still a one-bit expression that reparses; the stimulus ends with two patterns whose opposite ends disagree, so reading the wrong bit shows."
+}

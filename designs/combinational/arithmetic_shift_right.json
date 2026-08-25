@@ -1,0 +1,4 @@
+{
+    "note": "The arithmetic right shift beside the logical one. CURRENTLY FAILS, DELIBERATELY, on hif-backend#82: hif2verilog prints `>>>` as `sra`, HIF's internal operator name, which no Verilog parser accepts. `>>` in the same module comes out correctly, so the failure names the operator rather than the shift machinery. Also subject to hif-backend#81 (signed dropped from ports), which is independent and would surface once the operator prints.",
+    "expected_failure": {"issue": "hif-backend#82", "stage": "reparse"}
+}

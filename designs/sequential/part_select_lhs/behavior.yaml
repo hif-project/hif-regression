@@ -1,0 +1,16 @@
+# One claim: the regenerated design behaves like the design it came from.
+#
+# A slice bound that shifted by one is still a legal slice, still writes the
+# whole register between the two assignments, and still reparses. The only
+# thing that changes is which bits end up where, which is what this trace
+# records - the boundary at bit 5 is visible in every row.
+#
+# No checked-in trace: the claim is that the round trip preserved behavior.
+
+runs: []
+
+expectations:
+  - id: regenerated_matches_rtl
+    use: trace_equal
+    left:  {from: simulate_reference,   run: reference}
+    right: {from: simulate_regenerated, run: regenerated}

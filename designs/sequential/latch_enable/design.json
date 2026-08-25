@@ -1,0 +1,11 @@
+{
+    "top": "latch_enable",
+    "pipeline": "behavioral_roundtrip",
+    "sources": [
+        "latch_enable.v"
+    ],
+    "fixtures": {
+        "testbench": "latch_enable_tb.v"
+    },
+    "note": "The corpus's only level-sensitive storage element - every other design with state is clocked. The incomplete `if` is the design rather than an oversight: completing a conditional is a legitimate transformation everywhere it does not create storage, which makes this exactly the property a toolchain normalises away by accident. Behavioral because the resulting combinational logic has the same ports and reparses; the stimulus moves `d` while `en` is low, which is the only thing that separates a latch from a wire. Distinct from merged_case_labels, where an accidental hold is the failure rather than the specification."
+}

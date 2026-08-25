@@ -1,0 +1,10 @@
+{
+    "top": "vhdl_case",
+    "pipeline": "vhdl_to_verilog",
+    "sources": ["vhdl_case.vhd"],
+    "fixtures": {
+        "testbench": "vhdl_case_tb.v",
+        "expect_regenerated": "expect_regenerated.csv"
+    },
+    "note": "A VHDL case statement reaching the emitter through vhdl2hif, which none of the Verilog case fixtures does. The point of interest is `when others`: VHDL requires the choices to be exhaustive so it is always present, and it has to come out as `default` rather than as the label 2'b11 or as nothing at all. The four alternatives produce four different values under the stimulus, so a selector routed to the wrong branch is a wrong value rather than a coincidence. The stimulus ends by driving the selector to x, which is what separates `default` from an explicit 2'b11 label - VHDL's others covers the metavalues too, and without that row the two spellings are indistinguishable."
+}

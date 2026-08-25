@@ -1,0 +1,18 @@
+# One claim: the regenerated design behaves like the design it came from.
+#
+# A wait that is dropped, or that is lowered to an edge rather than a level,
+# still produces a module that parses, reparses and has the same ports. The
+# only difference is how many rising edges reach the counter, which is what
+# this trace records.
+#
+# No checked-in trace: the claim is that the round trip preserved behavior. The
+# rows and their reasons are set out in the testbench comment, so the trace can
+# be checked by hand against the design rather than taken on trust.
+
+runs: []
+
+expectations:
+  - id: regenerated_matches_rtl
+    use: trace_equal
+    left:  {from: simulate_reference,   run: reference}
+    right: {from: simulate_regenerated, run: regenerated}

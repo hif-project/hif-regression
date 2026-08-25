@@ -1,0 +1,19 @@
+# One claim: the regenerated design behaves like the design it came from.
+#
+# The reason this design is simulated at all is hif-backend#70. A task's out
+# arguments are copied back to the actuals when the task returns, so writing
+# them with `<=` inside the body instead of `=` leaves the copy-back reading
+# the previous value. The result is valid Verilog, with the task present and
+# both outputs declared, that reports the previous call's ordering - which
+# nothing short of running it can tell from a correct one.
+#
+# No checked-in trace: the claim is that the round trip preserved behavior, not
+# that these particular pairs are the specification.
+
+runs: []
+
+expectations:
+  - id: regenerated_matches_rtl
+    use: trace_equal
+    left:  {from: simulate_reference,   run: reference}
+    right: {from: simulate_regenerated, run: regenerated}

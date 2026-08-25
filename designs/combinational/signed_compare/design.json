@@ -1,0 +1,8 @@
+{
+    "top": "signed_compare",
+    "pipeline": "behavioral_roundtrip",
+    "sources": ["signed_compare.v"],
+    "fixtures": {"testbench": "signed_compare_tb.v"},
+    "note": "Signed relational comparison. CURRENTLY FAILS, DELIBERATELY, on hif-backend#81: with `signed` dropped from the ports the comparison is unsigned, so every pair with exactly one negative operand inverts - -1 < 1 is true signed and false unsigned, because 4'b1111 is 15. Kept separate from signed_add because the relational operators are different code in the emitter and the failure looks different: a boolean that is simply the wrong way round rather than a number that is far out. Carries controls - eq, and a two-negatives row - that read the same either way.",
+    "expected_failure": {"issue": "hif-backend#81", "stage": "validate"}
+}

@@ -1,0 +1,34 @@
+# One claim: the Verilog hif2verilog regenerates from this VHDL actually does
+# what the VHDL says.
+#
+# No VHDL simulator exists here, so the expected trace is computed by hand from
+# the VHDL rather than compared against a reference run of the source.
+#
+# With a = 1100 and b = 1010, the four alternatives give four different values,
+# so each row names exactly one branch:
+#
+#   1000  sel 00 -> a          = 1100
+#   2000  sel 01 -> b          = 1010
+#   3000  sel 11 -> others     -> a xor b = 0110
+#   4000  sel 10 -> a and b    = 1000
+#   5000  sel xx -> others     -> a xor b = 0110
+#
+# Rows three and five both reach `others`, and they are not the same claim.
+# Row three says it is reached at all: delete the alternative and 2'b11 has
+# nothing to select, so the process holds 1010 from the row before. Row five
+# says it came out as Verilog's `default` rather than as the label 2'b11 - both
+# serve 2'b11, only `default` also serves a selector that is not a defined
+# value, which is what VHDL's others means.
+#
+# The order matters and is not incidental. 2'b10 sits between them so that the
+# row before the metavalue gives 1000: a selector that matched nothing would
+# leave the process holding, and holding has to look different from reaching
+# `others`. Both claims were measured by mutating the regenerated Verilog.
+
+runs: []
+
+expectations:
+  - id: regenerated_matches_vhdl
+    use: expected_trace
+    left:     {from: simulate_regenerated, run: regenerated}
+    expected: {fixture: expect_regenerated}

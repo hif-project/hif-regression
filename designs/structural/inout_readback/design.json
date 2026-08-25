@@ -1,0 +1,8 @@
+{
+    "top": "inout_readback",
+    "pipeline": "behavioral_roundtrip",
+    "sources": ["inout_readback.v"],
+    "fixtures": {"testbench": "inout_readback_tb.v"},
+    "note": "A bidirectional pad that drives its pin and also senses it. CURRENTLY FAILS, DELIBERATELY, on hif-backend#89: the regenerated reader recomputes this design's own driver expression instead of reading the net, and is not even sensitive to the pin, so with another device driving it reads zzzz. The testbench is that other device - without one, a design reading back what it drove gives the same answer either way. `bus` agrees on every row, which localises the defect to the reading half of the inout lowering; the driving half, from hif-backend#71, is correct. replicated_z_literal drives without reading back for exactly this reason, and this design is the read-back that omission left unasked.",
+    "expected_failure": {"issue": "hif-backend#89", "stage": "validate"}
+}

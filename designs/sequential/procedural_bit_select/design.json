@@ -1,0 +1,11 @@
+{
+    "top": "procedural_bit_select",
+    "pipeline": "behavioral_roundtrip",
+    "sources": [
+        "procedural_bit_select.v"
+    ],
+    "fixtures": {
+        "testbench": "procedural_bit_select_tb.v"
+    },
+    "note": "Bit-select assignment targets inside a process - the path where hif-frontend#9 and hif-frontend#23 live - as opposed to bit_select_assign.v, which covers the continuous form and the partial-driver lowering it needs. The whole-vector reset write shares the register with the four per-bit writes, which is what a splitting pass has to reconcile, and q[3] <= q[2] puts a bit-select on both sides so the bits depend on one another. Behavioral rather than plain because the regenerated process is the source verbatim: a reparse confirms nothing here, while a wrong index is silent."
+}

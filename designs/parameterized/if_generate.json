@@ -1,0 +1,4 @@
+{
+    "note": "A static if generate choosing between two implementations. CURRENTLY FAILS, DELIBERATELY, on hif-backend#86: hif2verilog prints the generate condition as a bare prefix before the always keyword and emits both branches unconditionally, producing output that does not parse; hif2vhdl aborts on the same input. hif-backend#78 covers the for generate half and records if generate as unaffected - it is not, and this design is what says so. Together the two mean the generate construct is entirely unsupported in the backends.",
+    "expected_failure": {"issue": "hif-backend#86", "stage": "reparse"}
+}
