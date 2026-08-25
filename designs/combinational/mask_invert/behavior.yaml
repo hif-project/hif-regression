@@ -1,0 +1,69 @@
+# Two locations, one dataflow, and an inversion between them.
+#
+# sel and y are separate signals, so {signal, bit, type} names each location
+# unambiguously here - unlike nibble_swap, priority_arbiter and bit_reverse in
+# this batch, where one signal carries several locations and `line` is needed.
+# This design tests the other axis: not which location, but whether the two are
+# genuinely different points.
+#
+# The second statement inverts, so the same fault type at the two locations
+# drives the output the opposite way:
+#
+#   SA1 on sel bit 3  ->  sel[3] held high  ->  y[3] driven LOW
+#   SA1 on y   bit 3  ->                       y[3] driven HIGH
+#
+#   data     mask     golden y   SA1@sel[3]      SA1@y[3]
+#   11111111 11111111 00000000   00000000        00001000 moved
+#   11111111 00000000 11111111   11110111 moved  11111111
+#   10101010 11001100 01110111   01110111        01111111 moved
+#   01010101 11110000 10101111   10100111 moved  10101111
+#
+# The two faults move disjoint rows, and that is the content of the design. An
+# instrumentation that collapsed the intermediate - injecting on y for both -
+# would make the two runs identical, which is valid RTL and a different circuit.
+# It would also fail these oracles on all four rows rather than on some, so the
+# failure would be unmistakable.
+#
+# Each fault is invisible on two rows, which is the stronger statement: a fault
+# whose effect appeared everywhere would be consistent with an injection that
+# ignored the data. Here visibility follows whether the fault-free value already
+# agrees with the forced one, exactly as a stuck-at should.
+
+runs:
+  - {id: golden, params: {mut: 0}}
+
+  - id: sa1_sel_bit3
+    params:
+      mut: {from: enumerate, array: faults, where: {signal: sel, bit: 3, type: stuck-at-1}, take: id}
+
+  - id: sa1_y_bit3
+    params:
+      mut: {from: enumerate, array: faults, where: {signal: y, bit: 3, type: stuck-at-1}, take: id}
+
+expectations:
+  - id: golden_matches_rtl
+    use: trace_equal
+    left:  {from: simulate_reference,    run: reference}
+    right: {from: simulate_instrumented, run: golden}
+
+  - id: sa1_sel_bit3_expected_trace
+    use: expected_trace
+    left:     {from: simulate_instrumented, run: sa1_sel_bit3}
+    expected: {fixture: expect_sa1_sel_bit3}
+
+  - id: sa1_y_bit3_expected_trace
+    use: expected_trace
+    left:     {from: simulate_instrumented, run: sa1_y_bit3}
+    expected: {fixture: expect_sa1_y_bit3}
+
+  # The two locations are different points: injecting the same fault type at
+  # each produces different behaviour, not merely different-from-golden.
+  - id: sel_and_y_faults_differ
+    use: trace_differs
+    left:  {from: simulate_instrumented, run: sa1_sel_bit3}
+    right: {from: simulate_instrumented, run: sa1_y_bit3}
+
+  - id: sa1_sel_bit3_detected
+    use: trace_differs
+    left:  {from: simulate_instrumented, run: sa1_sel_bit3}
+    right: {from: simulate_reference,    run: reference}

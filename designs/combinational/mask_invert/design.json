@@ -1,0 +1,11 @@
+{
+    "top": "mask_invert",
+    "pipeline": "muffin_behavioral",
+    "sources": ["mask_invert.v"],
+    "fixtures": {
+        "testbench": "mask_invert_tb.v",
+        "expect_sa1_sel_bit3": "expect_sa1_sel_bit3.csv",
+        "expect_sa1_y_bit3": "expect_sa1_y_bit3.csv"
+    },
+    "note": "A multi-bit internal combinational wire as a fault site. The corpus injects into internal signals already, but only narrow ones arriving by other routes - struct_mux's nsel is one bit out of a gate primitive, hier_adder's s1 one bit left by an inlined instance, pipeline3's s1 a register whose effect lands cycles later. sel here is an ordinary eight-bit wire written by a continuous assignment, reaching y in the same delta. Because the second statement inverts, the same fault type at the two locations drives the output opposite ways: forcing sel[3] high drives y[3] low, forcing y[3] high drives it high. The two oracles therefore move disjoint rows, which is what shows the locations are different points in the dataflow rather than one point named twice - an instrumentation that collapsed the intermediate would make both faults agree, in valid RTL."
+}
