@@ -1,0 +1,35 @@
+# One claim: a full excursion through VHDL and back preserves behaviour exactly.
+# It does not complete today - hif2verilog aborts on the VHDL hif2vhdl wrote,
+# see hif-backend#93 - so this design is a declared expected failure at
+# `to_verilog`, the operation that runs hif2verilog on the twice-crossed HIF.
+#
+# The stage matters here more than usual. hif2vhdl itself exits 0 and writes a
+# .vhd, and vhdl2hif reparses it and exits 0 as well; the failure is three
+# operations later. A design declaring `to_vhdl` would be wrong about what
+# breaks, and the runner would flag it as not the documented failure.
+#
+# No values are checked in - the reference simulation of the untouched RTL
+# supplies them, as behavioral_roundtrip does. The stimulus is written for the
+# day #93 lands, since until then the pipeline stops before either simulation.
+#
+#   10101  top is 1, y is 01010 - a and y share no bit value
+#   01010  top is 0, y is 10101 - the mirror, so top follows a[4] and not a[0]
+#   11111  top is 1, y is 00000
+#   00000  top is 0, y is 11111
+#
+# The first two rows are the pair that pins the index. They differ in every
+# bit, so an index folded to any constant other than 4 - including 0, which a
+# reversed bound would give - reads the opposite value on one of them.
+#
+# Rows three and four are the uniform pair, and they are not the first two
+# restated: under 10101 and 01010 a five-bit y and a wider y truncated to five
+# bits can agree, whereas all-ones and all-zeros pin every bit of the width at
+# once. Together the four rows fix both the width and the index.
+
+runs: []
+
+expectations:
+  - id: roundtripped_matches_rtl
+    use: trace_equal
+    left:  {from: simulate_reference,    run: reference}
+    right: {from: simulate_roundtripped, run: roundtripped}
