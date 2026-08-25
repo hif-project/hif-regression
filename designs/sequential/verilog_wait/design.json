@@ -1,0 +1,11 @@
+{
+    "top": "verilog_wait",
+    "pipeline": "behavioral_roundtrip",
+    "sources": [
+        "verilog_wait.v"
+    ],
+    "fixtures": {
+        "testbench": "verilog_wait_tb.v"
+    },
+    "note": "Regression for hif-backend#42, which emitted a wait's operand instead of the wait statement itself. This is Verilog's level-sensitive `wait (condition)`, not VHDL's `wait until`: the process re-enters the wait with the condition still true and must fall straight through. Behavioral because a dropped or edge-lowered wait leaves a module with the same ports that still reparses - only the number of clock edges that reach the counter changes. HIF represents the Verilog and VHDL waits alike (hif-core#16), so the Verilog reading needs a design that pins it."
+}

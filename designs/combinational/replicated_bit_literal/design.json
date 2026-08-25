@@ -1,0 +1,11 @@
+{
+    "top": "replicated_bit_literal",
+    "pipeline": "behavioral_roundtrip",
+    "sources": [
+        "replicated_bit_literal.v"
+    ],
+    "fixtures": {
+        "testbench": "replicated_bit_literal_tb.v"
+    },
+    "note": "Regression for hif-backend#61, which printed a one-bit replication operand without its size. Behavioral rather than plain, and for a measured reason: verilog2hif accepts a concatenation whose operands have indefinite width, so the reparse step passes on exactly the output no simulator will elaborate. Only a pipeline that compiles the regenerated design catches it. The constant replications were checked by hand not to have been folded away - the regenerated file still spells them as nested concatenations of sized literals - and one replication is over a signal, where folding is not available at all and the trace has to carry it."
+}

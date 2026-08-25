@@ -1,0 +1,11 @@
+{
+    "top": "initial_block",
+    "pipeline": "behavioral_roundtrip",
+    "sources": [
+        "initial_block.v"
+    ],
+    "fixtures": {
+        "testbench": "initial_block_tb.v"
+    },
+    "note": "Regression for hif-backend#40, which emitted a run-once process as `always` instead of `initial`. Both spellings are legal Verilog around the same body, so the round trip cannot see the difference; the design is simulated because a replayed body returns rst_n to 0 in the instant it reaches 1, and the counter it gates never leaves zero. The reset is released at 12 ns, off the clock grid, so the trace pins the one-shot release rather than a race between the initial block and the clocked process."
+}

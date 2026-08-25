@@ -1,0 +1,18 @@
+# One claim: the regenerated design behaves like the design it came from.
+#
+# hif-backend#68's own shape - two constants run together into one token - does
+# not survive a compile, so the simulation of the regenerated design catches it
+# before this expectation is reached. What the expectation adds is the other
+# way a merge can go wrong: a label dropped rather than mis-separated leaves a
+# case with no alternative for 2'b01, which is legal Verilog and turns the
+# process into a latch. That is only visible by running it.
+#
+# No checked-in trace: the claim is that the round trip preserved behavior.
+
+runs: []
+
+expectations:
+  - id: regenerated_matches_rtl
+    use: trace_equal
+    left:  {from: simulate_reference,   run: reference}
+    right: {from: simulate_regenerated, run: regenerated}
