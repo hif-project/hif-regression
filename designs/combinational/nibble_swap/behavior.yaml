@@ -1,0 +1,75 @@
+# One signal, two fault locations, and the question of what `bit` counts from.
+#
+# Muffin's fault location is an assignment, not a signal. `y` is assigned twice
+# here, so it carries two locations of width 4 - the width of the part-select,
+# not of the declared 8-bit signal - and {signal, bit, type} matches both. The
+# only attribute that separates them is `line`, which is why these selectors
+# name it. No earlier Muffin design in this corpus needed it, because every one
+# of them was written with a single assignment per signal on purpose.
+#
+# Line 20 is `y[7:4] = a[3:0]` and line 21 is `y[3:0] = a[7:4]`. Moving either
+# statement breaks these selectors; there is no other way to tell the two
+# locations apart.
+#
+# The two injections say what bit numbering means:
+#
+#   SA1 on bit 0 of the line-20 location  ->  physical y[4] forced high
+#   SA0 on bit 3 of the line-21 location  ->  physical y[3] forced low
+#
+# Numbering against the declared signal instead of the assignment would put the
+# first at y[0] and the second at y[7]. Both alternatives are valid eight-bit
+# RTL that a round trip and a reparse accept, which is exactly why this is
+# checked by simulation against a stated oracle rather than structurally.
+#
+# The vectors are chosen so each fault is detected on some and invisible on
+# others, since a fault that changes every vector proves less than one whose
+# visibility follows the data:
+#
+#   a=00000000  golden y=00000000  SA1 shows (y[4] 0->1)   SA0 hidden (y[3] already 0)
+#   a=11111111  golden y=11111111  SA1 hidden (already 1)  SA0 shows (y[3] 1->0)
+#   a=11110000  golden y=00001111  SA1 shows               SA0 shows
+#   a=00001111  golden y=11110000  SA1 hidden              SA0 hidden
+#
+# The last row is the one that matters most for attribution: both faults are
+# invisible there, so a trace that moves on it would mean the injection is not
+# confined to the bit and location it names.
+
+runs:
+  - {id: golden, params: {mut: 0}}
+
+  - id: sa1_high_bit0
+    params:
+      mut: {from: enumerate, array: faults, where: {signal: y, bit: 0, type: stuck-at-1, line: 20}, take: id}
+
+  - id: sa0_low_bit3
+    params:
+      mut: {from: enumerate, array: faults, where: {signal: y, bit: 3, type: stuck-at-0, line: 21}, take: id}
+
+expectations:
+  # Mandatory: instrumentation must be behaviorally transparent when inactive.
+  - id: golden_matches_rtl
+    use: trace_equal
+    left:  {from: simulate_reference,    run: reference}
+    right: {from: simulate_instrumented, run: golden}
+
+  # The whole point: bit 0 of the y[7:4] assignment is y[4], not y[0].
+  - id: sa1_high_bit0_expected_trace
+    use: expected_trace
+    left:     {from: simulate_instrumented, run: sa1_high_bit0}
+    expected: {fixture: expect_sa1_high_bit0}
+
+  # ... and bit 3 of the y[3:0] assignment is y[3], not y[7].
+  - id: sa0_low_bit3_expected_trace
+    use: expected_trace
+    left:     {from: simulate_instrumented, run: sa0_low_bit3}
+    expected: {fixture: expect_sa0_low_bit3}
+
+  - id: sa1_high_bit0_detected
+    use: trace_differs
+    left:  {from: simulate_instrumented, run: sa1_high_bit0}
+    right: {from: simulate_reference,    run: reference}
+
+  - id: sa0_low_bit3_detected
+    use: trace_differs
+    left:  {from: simulate_instrumented, run: sa0_low_bit3}
+    right: {from: simulate_reference,    run: reference}
