@@ -1,0 +1,19 @@
+# One claim: the regenerated design behaves like the design it came from.
+#
+# The step that does the work for hif-backend#61 is the compile of the
+# regenerated design, not this comparison: an unsized concatenation operand
+# reparses through verilog2hif and is rejected by every simulator, so a
+# pipeline that ends at the reparse cannot see it and one that elaborates can.
+# The comparison then adds the other half - that the widths which survived are
+# the right ones, and the replicated constants are still four ones and four
+# zeros above four ones.
+#
+# No checked-in trace: the claim is that the round trip preserved behavior.
+
+runs: []
+
+expectations:
+  - id: regenerated_matches_rtl
+    use: trace_equal
+    left:  {from: simulate_reference,   run: reference}
+    right: {from: simulate_regenerated, run: regenerated}

@@ -1,0 +1,11 @@
+{
+    "top": "merged_case_labels",
+    "pipeline": "behavioral_roundtrip",
+    "sources": [
+        "merged_case_labels.v"
+    ],
+    "fixtures": {
+        "testbench": "merged_case_labels_tb.v"
+    },
+    "note": "Regression for hif-backend#68, which printed a merged case alternative's labels with no separator. The two identical bodies are written out separately so the merged alternative is one the frontend built, not one copied from the source - confirmed by the regenerated file, which carries `2'b00, 2'b01 :`. Behavioral rather than plain: the missing separator does not compile, but a label dropped in the merge does, and leaves 2'b01 with no alternative and the process holding its previous value. The existing case fixtures - mux4_case and the FSMs - all have distinct bodies and never reach the merge."
+}

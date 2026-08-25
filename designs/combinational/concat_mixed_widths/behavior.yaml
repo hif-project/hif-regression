@@ -1,0 +1,17 @@
+# One claim: the regenerated design behaves like the design it came from.
+#
+# A concatenation that took an operand's width wrongly is still a
+# concatenation, still assigns to the same output and still reparses; what
+# changes is where each field lands. The stimulus brackets the byte field with
+# all-zeros and all-ones so a boundary off by one moves bits rather than
+# happening to agree.
+#
+# No checked-in trace: the claim is that the round trip preserved behavior.
+
+runs: []
+
+expectations:
+  - id: regenerated_matches_rtl
+    use: trace_equal
+    left:  {from: simulate_reference,   run: reference}
+    right: {from: simulate_regenerated, run: regenerated}

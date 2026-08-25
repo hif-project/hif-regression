@@ -1,0 +1,32 @@
+# One claim: the Verilog hif2verilog regenerates from this VHDL actually does
+# what the VHDL says.
+#
+# No VHDL simulator exists here, so the expected trace is computed by hand from
+# the VHDL rather than compared against a reference run of the source.
+#
+# Reading the process, with the variable updating immediately:
+#
+#   y = a and b
+#   z = (a and b) or c
+#
+#   a b c    y  z
+#   0 0 0    0  0
+#   1 1 0    1  1
+#   1 0 0    0  0
+#   1 1 1    1  1
+#   0 1 1    0  1     z is high on c alone, so z is not simply a copy of y
+#   1 1 0    1  1
+#
+# `y` alternates on every row. If `t` were flattened into a signal, each
+# execution would read the value the one before it published, so `y` would be
+# the previous row's `a and b` - which differs from this column everywhere.
+# Row five is the one that keeps `z` honest: it is high while `y` is low, so a
+# `z` that had collapsed into `y` would show.
+
+runs: []
+
+expectations:
+  - id: regenerated_matches_vhdl
+    use: expected_trace
+    left:     {from: simulate_regenerated, run: regenerated}
+    expected: {fixture: expect_regenerated}

@@ -1,0 +1,11 @@
+{
+    "top": "replicated_z_literal",
+    "pipeline": "behavioral_roundtrip",
+    "sources": [
+        "replicated_z_literal.v"
+    ],
+    "fixtures": {
+        "testbench": "replicated_z_literal_tb.v"
+    },
+    "note": "The four-state half of hif-backend#61, and the corpus's first Verilog tri-state - the existing bidirectional designs, vhdl_tristate_pad and vhdl_shared_bus, are all VHDL-sourced. `{4{1'bz}}` has to keep its operand widths, which no reparse can check because verilog2hif accepts an unsized concatenation operand, and it has to stay high-impedance rather than becoming an ordinary logic level. The testbench is the second device on the pin, so releasing and driving are distinguishable; without one, a pad that never let go would produce the same trace. The pin is driven and never read back: reading the resolved value of an inout the design also drives is hif-backend#89, and inout_readback.v is the design that asks it and is red on it."
+}

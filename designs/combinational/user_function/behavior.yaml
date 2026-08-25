@@ -1,0 +1,19 @@
+# One claim: the regenerated design behaves like the design it came from.
+#
+# This is the pipeline the defects it covers need. hif-backend#57 emitted a
+# function's header without its body: the regenerated module still declares
+# both outputs, still parses, and still reparses - it just returns nothing.
+# Only running it separates that from a function that works.
+#
+# No checked-in trace: the claim is that the round trip preserved behavior, and
+# pinning absolute values would freeze this testbench's argument pairs into the
+# corpus as if they were the specification. The pairs themselves are chosen in
+# the testbench comment.
+
+runs: []
+
+expectations:
+  - id: regenerated_matches_rtl
+    use: trace_equal
+    left:  {from: simulate_reference,   run: reference}
+    right: {from: simulate_regenerated, run: regenerated}

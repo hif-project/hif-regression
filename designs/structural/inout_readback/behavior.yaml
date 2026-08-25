@@ -1,0 +1,24 @@
+# One claim: the regenerated design behaves like the design it came from.
+#
+# This expectation currently FAILS, deliberately, on hif-backend#89. On the one
+# row where the testbench is driving the pin and this design has released it,
+# `sensed` reads zzzz instead of 0110 - the regenerated reader recomputed the
+# design's own driver expression rather than reading the net.
+#
+# `bus` itself agrees on every row, which is what localises the defect: the
+# driving half of the lowering is correct and the reading half is not.
+#
+# Behavioral, and with a second driver, because neither alone is enough. A
+# reparse sees valid Verilog with the right ports; a simulation without another
+# device on the pin sees this design reading back exactly what it drove, which
+# is the same answer either way.
+#
+# Goes green when #89 is fixed, with no change here.
+
+runs: []
+
+expectations:
+  - id: regenerated_matches_rtl
+    use: trace_equal
+    left:  {from: simulate_reference,   run: reference}
+    right: {from: simulate_regenerated, run: regenerated}

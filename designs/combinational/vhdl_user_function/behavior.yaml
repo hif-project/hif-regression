@@ -1,0 +1,30 @@
+# One claim: the Verilog hif2verilog regenerates from this VHDL actually does
+# what the VHDL says.
+#
+# No VHDL simulator exists here, so the expected trace is computed by hand from
+# the VHDL rather than compared against a reference run of the source.
+#
+# VHDL compares two arrays of the same length left to right, which for these
+# operands is the ordinary unsigned comparison. Reading the function:
+#
+#   1000  1100 > 1010: the early return fires and the answer is a
+#   2000  0011 > 1000 is false: control reaches `return z` and the answer is b
+#   3000  equal, so `>` is false: `return z` again
+#   4000  the widest separation with a larger: early return again
+#   5000  and with b larger, so neither path is the one that always runs
+#
+# Rows one and four are the early-return claim. If the `disable` that leaves
+# the function were dropped, the `return z` below would run as well and
+# overwrite them with b - 1010 and 0000 instead of 1100 and 1111. Rows two,
+# three and five would be unaffected, which is why the trace needs both kinds.
+#
+# A function emitted without its body - hif-backend#57 - returns nothing and
+# every row goes to x.
+
+runs: []
+
+expectations:
+  - id: regenerated_matches_vhdl
+    use: expected_trace
+    left:     {from: simulate_regenerated, run: regenerated}
+    expected: {fixture: expect_regenerated}

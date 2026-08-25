@@ -1,0 +1,8 @@
+{
+    "top": "signed_add",
+    "pipeline": "behavioral_roundtrip",
+    "sources": ["signed_add.v"],
+    "fixtures": {"testbench": "signed_add_tb.v"},
+    "note": "Signed addition taken at two widths. CURRENTLY FAILS, DELIBERATELY, on hif-backend#81: hif2verilog drops `signed` from the ports and widens by zero extension, so -3 + 2 reads 15 where the source reads -1. verilog2hif records the signedness correctly - the HIF carries signed=\"true\" - so the loss is entirely in the backend, and it is silent: exit 0, valid Verilog, clean reparse, different numbers. The corpus was full of arithmetic and had nothing saying an adder knows its operands are signed.",
+    "expected_failure": {"issue": "hif-backend#81", "stage": "validate"}
+}

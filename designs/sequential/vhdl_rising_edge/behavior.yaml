@@ -1,0 +1,32 @@
+# One claim: the Verilog hif2verilog regenerates from this VHDL actually does
+# what the VHDL says.
+#
+# There is no VHDL simulator here (no ghdl, no nvc, locally or in CI), so this
+# cannot be a source-vs-regenerated comparison. The expected trace is computed
+# by hand from the VHDL and checked in - a weaker guarantee, and the strongest
+# one available on this path.
+#
+# The clock rises at 5 ns and every 10 ns after. Each step presents its inputs
+# before an edge, then moves `d` two nanoseconds after that edge and leaves it
+# moved. Reading the VHDL:
+#
+#   12000  en high over the edge at 5 ns: q captured 0101. `d` now reads 1111,
+#          and q must not have followed it
+#   22000  en was low over the edge at 15 ns: q still 0101
+#   32000  en high over the edge at 25 ns: q captured 1100, `d` now reads 0011
+#   42000  en low over the edge at 35 ns: q still 1100
+#   52000  en high over the edge at 45 ns: q captured 0110, `d` now reads 1001
+#
+# The odd-numbered rows are the edge-sensitivity claim and the even ones the
+# enable. Together they exclude the two ways this process can be rebuilt
+# wrongly: a sensitivity list taken from the signals read rather than from the
+# edge turns it into a latch, and q follows `d` on rows one, three and five; a
+# missing enable loads on rows two and four.
+
+runs: []
+
+expectations:
+  - id: regenerated_matches_vhdl
+    use: expected_trace
+    left:     {from: simulate_regenerated, run: regenerated}
+    expected: {fixture: expect_regenerated}

@@ -1,0 +1,19 @@
+# One claim: the regenerated design behaves like the design it came from.
+#
+# There is nothing here a reparse could catch. Blocking and non-blocking
+# assignment are both legal in a clocked process, both regenerate, and both
+# write the same two registers; the difference is only whether the second
+# statement sees the first one's result in this edge or the last one's. That is
+# a value question, and the trace is where it is asked.
+#
+# No checked-in trace: the claim is that the round trip preserved behavior. The
+# numbers a lagging `b` would produce instead are written out in the testbench
+# comment, so the trace can be checked against the design.
+
+runs: []
+
+expectations:
+  - id: regenerated_matches_rtl
+    use: trace_equal
+    left:  {from: simulate_reference,   run: reference}
+    right: {from: simulate_regenerated, run: regenerated}

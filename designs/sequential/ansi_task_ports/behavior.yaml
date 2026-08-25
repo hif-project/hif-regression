@@ -1,0 +1,19 @@
+# One claim: the regenerated design behaves like the design it came from.
+#
+# hif-frontend#25 is caught at the frontend - it was an outright refusal - so
+# the round trip would cover it on its own. What the simulation adds is the
+# boundary of hif-frontend#31: an inout argument whose copy-in or copy-back is
+# lost produces a module that compiles, reparses, and holds its accumulator at
+# zero. That is what verilog_task_arguments records as an expected failure, and
+# this design is the case that has to keep working.
+#
+# No checked-in trace: the claim is that the round trip preserved behavior, and
+# the counts the trace has to show are derived in the testbench comment.
+
+runs: []
+
+expectations:
+  - id: regenerated_matches_rtl
+    use: trace_equal
+    left:  {from: simulate_reference,   run: reference}
+    right: {from: simulate_regenerated, run: regenerated}

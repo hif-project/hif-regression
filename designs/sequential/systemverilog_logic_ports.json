@@ -1,0 +1,4 @@
+{
+    "note": "SystemVerilog `logic` in an ANSI port header. CURRENTLY FAILS, DELIBERATELY, on hif-frontend#33: verilog2hif parses a port's type as a Verilog-AMS discipline and rejects `logic` as an unsupported identifier, aborting. The same keyword in a body declaration works - hif-frontend#21 - and systemverilog_logic.v covers that, with untyped ports for this reason. This design is the port form that omission left unasked.",
+    "expected_failure": {"issue": "hif-frontend#33", "stage": "frontend"}
+}

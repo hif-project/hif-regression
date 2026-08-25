@@ -1,0 +1,4 @@
+{
+    "note": "A function with a local variable. CURRENTLY FAILS, DELIBERATELY, on hif-backend#83: hif2verilog emits the local as a declaration assignment inside the function body, which is only legal at module level, so the regenerated file does not reparse. user_function.v covers the function path without a local and passes; this design is the local, which that one was reshaped to avoid.",
+    "expected_failure": {"issue": "hif-backend#83", "stage": "reparse"}
+}

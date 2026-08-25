@@ -1,0 +1,23 @@
+# One claim: the regenerated design behaves like the design it came from.
+#
+# This expectation currently FAILS, deliberately, on hif-backend#81. With
+# `signed` dropped from the ports the comparison is unsigned, so the four rows
+# with exactly one negative operand invert `lt` and `ge`.
+#
+# Behavioral because there is nothing else to catch it: `a < b` regenerates as
+# `a < b`, exits 0 and reparses cleanly. The operator is right and the operand
+# type is not, which no structural check can see.
+#
+# `eq` and the two-negatives row are controls - they read the same under either
+# interpretation, so a trace that differed on every row would be pointing at
+# something other than signedness.
+#
+# Goes green when #81 is fixed, with no change here.
+
+runs: []
+
+expectations:
+  - id: regenerated_matches_rtl
+    use: trace_equal
+    left:  {from: simulate_reference,   run: reference}
+    right: {from: simulate_regenerated, run: regenerated}
