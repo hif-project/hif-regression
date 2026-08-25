@@ -38,7 +38,12 @@ def resolve_params(params, artifacts, context):
                 f"{context}: parameter '{key}' reads from operation '{source_id}', "
                 f"which produced no artifact (available: {sorted(str(k) for k in artifacts)})"
             )
-        document = json.loads(Path(artifact).read_text())
+        if len(artifact) != 1:
+            raise ManifestError(
+                f"{context}: parameter '{key}' reads from operation '{source_id}', "
+                f"which produced {len(artifact)} files; a record lookup needs exactly one"
+            )
+        document = json.loads(Path(artifact[0]).read_text())
         resolved[key] = resolve_record(
             document, value["array"], value["where"], value["take"],
             f"{context}, parameter '{key}'",
@@ -60,7 +65,11 @@ def _collect_sources(op, artifacts, design, context):
                 raise ManifestError(
                     f"{context}: sources reference operation '{entry['from']}', "
                     f"which produced no artifact")
-            sources.append(Path(artifact))
+            # An operation's artifact may be several files - hif2verilog emits
+            # one `.v` per design unit, so a hierarchy that survived to the
+            # emitter arrives here as a file per module. The simulator compiles
+            # all of them.
+            sources.extend(Path(a) for a in artifact)
         elif "fixture" in entry:
             sources.append(design.fixture(entry["fixture"], context))
         elif entry.get("design") == "sources":
