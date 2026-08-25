@@ -3,10 +3,10 @@
 // independently observable.
 //
 // The sum bits are gathered into one assignment rather than written as
-// `assign sum[0] = ...`: a bit-select on the left of a continuous assign
-// currently crashes hif2verilog - see
-// https://github.com/hif-project/hif-backend/issues/17. The carry chain, which
-// is the point of this fixture, is unaffected.
+// `assign sum[0] = ...`, because a bit-select on the left of a continuous
+// assign used to crash hif2verilog (hif-backend#17). That is now fixed, and
+// bit_select_assign.v covers the per-bit form directly; this fixture stays as
+// it is, since the carry chain is what it is actually here to exercise.
 module carry_ripple(input [3:0] a, input [3:0] b, input cin, output [3:0] sum, output cout);
   wire c1, c2, c3;
   wire s0, s1, s2, s3;

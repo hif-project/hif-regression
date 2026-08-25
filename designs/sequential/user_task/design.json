@@ -1,0 +1,11 @@
+{
+    "top": "user_task",
+    "pipeline": "behavioral_roundtrip",
+    "sources": [
+        "user_task.v"
+    ],
+    "fixtures": {
+        "testbench": "user_task_tb.v"
+    },
+    "note": "The corpus's plain user-defined Verilog task: classic non-ANSI declaration, input and output arguments, one call from a clocked process. Covers hif-backend#38 (a task was not emitted as a task), #64 (its out arguments were not declared) and #70 (an out argument assigned with `<=`, so the copy-back on return published the previous call's value). Behavioral because #70's output is valid Verilog that is merely one call behind. Distinct from verilog_task_arguments, which is the ANSI header with an inout argument and is expected to fail on hif-frontend#31; nothing here mixes a direct assignment with a task-call write, so this design exercises the task path on its own."
+}

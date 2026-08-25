@@ -1,0 +1,19 @@
+# One claim: the regenerated design behaves like the design it came from.
+#
+# The lowering hif-backend#47 covers replaces the repeat with a for loop over a
+# synthetic index. An index that is declared but never initialised, or
+# initialised at the wrong bound, still regenerates a loop that parses and
+# reparses - it just consumes a different number of edges, and the only place
+# that shows is the pulse period.
+#
+# No checked-in trace: the claim is that the round trip preserved behavior, and
+# the period the trace has to show is derived from the design in the testbench
+# comment.
+
+runs: []
+
+expectations:
+  - id: regenerated_matches_rtl
+    use: trace_equal
+    left:  {from: simulate_reference,   run: reference}
+    right: {from: simulate_regenerated, run: regenerated}

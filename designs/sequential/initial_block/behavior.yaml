@@ -1,0 +1,18 @@
+# One claim: the regenerated design behaves like the design it came from.
+#
+# `initial` and `always` around the same body are both legal Verilog and both
+# reparse, so hif-backend#40 - a run-once process emitted as `always` - is
+# exactly the defect a round trip is blind to. It is visible here because a
+# replayed body puts the reset back on in the instant it comes off, and the
+# counter never leaves zero.
+#
+# No checked-in trace: the claim is that the round trip preserved behavior. The
+# rows the trace has to contain, and why, are in the testbench comment.
+
+runs: []
+
+expectations:
+  - id: regenerated_matches_rtl
+    use: trace_equal
+    left:  {from: simulate_reference,   run: reference}
+    right: {from: simulate_regenerated, run: regenerated}
