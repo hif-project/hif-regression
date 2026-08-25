@@ -1,0 +1,37 @@
+# One claim: the Verilog hif2verilog regenerates from this VHDL wires both
+# instances the way the VHDL port maps say.
+#
+# No VHDL simulator exists here, so the expected trace is computed by hand from
+# the VHDL rather than compared against a reference run of the source. The cell
+# is r <= p and not q; u0 receives (p=a, q=b) and u1 receives (p=b, q=a), so
+# y0 = a and not b while y1 = b and not a.
+#
+#   1000  a=1100 b=1010 -> y0=0100 y1=0010
+#   2000  a=1111 b=0000 -> y0=1111 y1=0000
+#   3000  a=0000 b=1111 -> y0=0000 y1=1111
+#
+# Row one is the discriminating row and carries three separate claims. y0 and
+# y1 differ, so u1's out-of-order named map was not read positionally - that
+# mistake makes y1 equal y0 on every row. y0 is 0100 rather than 0010, so the
+# cell computes p and not q and not the mirror. And 0100 is not a palindrome,
+# so a vector regenerated with its bit order reversed is a different value here
+# where a symmetric pattern would hide it.
+#
+# Rows two and three are the two full-width extremes, and they are not row one
+# repeated. Row one's operands share bits, so a cell that ignored one operand
+# entirely still produces something plausible; under 1111/0000 each output is
+# either all ones or all zeros, and an operand tied off or a vector truncated
+# to fewer bits than it was declared cannot land on those values by accident.
+# The two rows are mirrored so that an output net driven by the wrong instance
+# swaps y0 and y1 rather than leaving both correct.
+#
+# Both the positional-map and the mirrored-cell claims were measured by mutating
+# the regenerated Verilog in that shape and confirming the trace changes.
+
+runs: []
+
+expectations:
+  - id: regenerated_matches_vhdl
+    use: expected_trace
+    left:     {from: simulate_regenerated, run: regenerated}
+    expected: {fixture: expect_regenerated}
