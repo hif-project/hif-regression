@@ -14,11 +14,12 @@
 // that failed to release shows up as contention on the rows where the
 // testbench is driving and this design is not.
 //
-// The pin is only driven here, never read back. A process that reads the
-// resolved value of an inout it also drives is a separate path, and one this
-// toolchain does not currently get right - it reads back its own driver
-// expression instead of the net - so it is deliberately not part of this
-// design's question.
+// The pin is only driven here, never read back. Reading the resolved value of
+// an inout the design also drives is a separate path, and a broken one:
+// hif2verilog gives the reader a copy of this design's own driver expression
+// instead of the net (hif-backend#89). inout_readback.v is that design, and is
+// red on that issue - which is where the question belongs, rather than here
+// where it would obscure what the Z replication is doing.
 module replicated_z_literal(input [3:0] d, input oe, inout [3:0] bus);
   assign bus = oe ? d : {4{1'bz}};
 endmodule

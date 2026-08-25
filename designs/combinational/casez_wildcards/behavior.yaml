@@ -1,0 +1,24 @@
+# One claim: the regenerated design behaves like the design it came from.
+#
+# This expectation currently FAILS, deliberately, on hif-backend#84. The
+# regenerated design is a plain `case` over labels spelled with `z`, so every
+# wildcard alternative is unreachable and five of the eight rows take the
+# default instead - grant 0 and `any` low where the source grants and asserts.
+#
+# Behavioral because nothing else can see it: the regenerated file is valid
+# Verilog, exits 0 and reparses cleanly. `case` and `casez` are both legal
+# keywords around the same alternatives.
+#
+# The 1000 and 0000 rows are controls: neither needs a wildcard to match, so
+# both agree even under the defect, which is what makes the failing rows point
+# at the wildcards specifically.
+#
+# Goes green when #84 is fixed, with no change here.
+
+runs: []
+
+expectations:
+  - id: regenerated_matches_rtl
+    use: trace_equal
+    left:  {from: simulate_reference,   run: reference}
+    right: {from: simulate_regenerated, run: regenerated}

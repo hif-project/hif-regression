@@ -11,9 +11,10 @@
 // below are for: a discipline net does not get variable semantics, and only a
 // variable can be a procedural assignment target at all.
 //
-// Ports stay untyped. `input logic d` inside an ANSI port header is a separate,
-// still-unsupported spelling, and mixing it in here would stop this design from
-// reaching the declaration path it is about.
+// Ports stay untyped, because `input logic d` inside an ANSI port header still
+// aborts verilog2hif - hif-frontend#33 - and mixing it in here would stop this
+// design from reaching the declaration path it is about.
+// systemverilog_logic_ports.v is the port form, and is red on that issue.
 //
 // Round-trip rather than behavioral: the remaining half of #21 is the default
 // value a `logic` declaration starts from - 'X' for a variable against 'Z' for

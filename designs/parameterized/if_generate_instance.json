@@ -1,0 +1,5 @@
+{
+    "top": "if_generate_instance",
+    "note": "A static if generate with a module instance in one branch. CURRENTLY FAILS, DELIBERATELY, on hif-frontend#32: verilog2hif aborts in hif-core's simplify.cpp before the backend is reached. Deliberately paired with if_generate.v, whose branches hold continuous assignments and which translates at exit 0 and fails in the backend on hif-backend#86 - two defects, two repositories, and the pair is what tells them apart.",
+    "expected_failure": {"issue": "hif-frontend#32", "stage": "frontend"}
+}

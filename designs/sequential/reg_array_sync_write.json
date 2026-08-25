@@ -1,0 +1,4 @@
+{
+    "note": "A four-word register file - unpacked array, clocked indexed write, combinational indexed read. CURRENTLY FAILS, DELIBERATELY, on hif-backend#87: the array regenerates as a four-bit vector, the array range taken as the width and the element width lost, with the default printed as run-together index/value pairs. The corpus has no memory design of any kind and cannot have one until this is fixed; this is what records that.",
+    "expected_failure": {"issue": "hif-backend#87", "stage": "reparse"}
+}

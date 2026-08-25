@@ -1,0 +1,21 @@
+# One claim: the regenerated design behaves like the design it came from.
+#
+# This expectation currently FAILS, deliberately, on hif-backend#88. The two
+# continuous assignments become two processes writing one reg, so the rows
+# where only the a driver is asserting read zzzz: the b process ran afterwards
+# and overwrote the value with its own released state.
+#
+# Behavioral because nothing structural can see it. The regenerated module has
+# the same ports and the same two expressions, exits 0 and reparses cleanly;
+# what it lost is that `bus` was a net, and net resolution is not a property
+# any parse can check.
+#
+# Goes green when #88 is fixed, with no change here.
+
+runs: []
+
+expectations:
+  - id: regenerated_matches_rtl
+    use: trace_equal
+    left:  {from: simulate_reference,   run: reference}
+    right: {from: simulate_regenerated, run: regenerated}

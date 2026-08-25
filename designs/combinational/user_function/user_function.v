@@ -17,6 +17,11 @@
 // The function is called twice, with different actuals, so it has to be
 // emitted once and resolved at both sites rather than inlined at whichever one
 // came first.
+//
+// It declares no local variable. That is not a simplification: hif2verilog
+// emits a function-local as a declaration assignment inside the function body,
+// which does not parse (hif-backend#83). function_local_variable.v is the same
+// function with the local put back, and is red on that issue.
 module user_function(input [3:0] a, input [3:0] b, output [4:0] capped_ab, output [4:0] capped_aa);
 
   // x + y, never above 20. The sum is five bits wide, so it is not the
