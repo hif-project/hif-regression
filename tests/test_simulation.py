@@ -28,8 +28,18 @@ class TestResolveParams(unittest.TestCase):
         got = resolve_params(
             {"mut": {"from": "enumerate", "array": "faults",
                      "where": {"signal": "y", "bit": 0, "type": "stuck-at-1"}, "take": "id"}},
-            {"enumerate": self.faults}, "run r")
+            {"enumerate": [self.faults]}, "run r")
         self.assertEqual(got, {"mut": 2})
+
+    def test_lookup_against_a_multi_file_artifact_is_an_error(self):
+        """A record lookup parses one JSON document. An operation that produced
+        several files gives it no basis to choose, so it refuses rather than
+        reading the first one."""
+        with self.assertRaises(ManifestError) as ctx:
+            resolve_params(
+                {"mut": {"from": "enumerate", "array": "faults", "where": {}, "take": "id"}},
+                {"enumerate": [self.faults, self.faults]}, "run r")
+        self.assertIn("2 files", str(ctx.exception))
 
     def test_lookup_against_unknown_operation_is_an_error(self):
         with self.assertRaises(ManifestError) as ctx:
