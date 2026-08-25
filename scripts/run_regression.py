@@ -289,6 +289,32 @@ def build_report(results, manifest_label):
     }
 
 
+def print_progress(index, total, design, res):
+    """One line per design, as it finishes.
+
+    A full run is otherwise a couple of minutes of silence, which hides both
+    where the time goes and - more to the point - which design broke, until
+    every other one has also run.
+
+    Nothing parses this. The CI job reads the JSON report and the step summary
+    comes from report.py, so this stream is only for whoever is watching it.
+
+    Flushed explicitly because stdout is block-buffered when it is not a
+    terminal. Without that the lines arrive in one burst at the end, which is
+    the behaviour this exists to remove - in CI most of all, where the run is
+    a pipe and never a tty.
+
+    The status is padded to five, which is the width of every status a healthy
+    run produces. CLEAN_REJECT and TIMEOUT are wider and push the name across;
+    that is deliberate, since both are worth noticing in a scrolling log.
+    """
+    print(
+        f"[{index:>{len(str(total))}}/{total}] {res['overall_status']:<5} "
+        f"{design.category}/{design.name}",
+        flush=True,
+    )
+
+
 def print_summary(report):
     print(f"\n== hif-regression: curated corpus ({report['manifest']}) ==\n")
     header = (f"{'Category':<15}{'Total':>7}{'Pass':>7}{'CleanReject':>13}"
@@ -363,6 +389,7 @@ def main():
     parser.add_argument("--only", default=None, help="only run designs whose name contains this substring")
     parser.add_argument("--report", default="reports/curated-report.json", help="path to write the JSON report")
     parser.add_argument("--manifest-label", default="unspecified", help="label recorded in the report (e.g. 'develop' or 'stable')")
+    parser.add_argument("--quiet", action="store_true", help="suppress the per-design progress lines; print only the summary")
     args = parser.parse_args()
 
     registries = {
@@ -387,7 +414,15 @@ def main():
         shutil.rmtree(work_root)
     work_root.mkdir(parents=True, exist_ok=True)
 
-    results = [run_design(d, pipelines, registries, args.bin_dir, work_root, args.timeout) for d in designs]
+    total = len(designs)
+    if not args.quiet:
+        print(f"\nRunning {total} design(s)...\n", flush=True)
+    results = []
+    for index, design in enumerate(designs, start=1):
+        res = run_design(design, pipelines, registries, args.bin_dir, work_root, args.timeout)
+        results.append(res)
+        if not args.quiet:
+            print_progress(index, total, design, res)
     report = build_report(results, args.manifest_label)
 
     report_path = Path(args.report)
