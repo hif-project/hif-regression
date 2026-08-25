@@ -1,0 +1,11 @@
+{
+    "top": "priority_arbiter",
+    "pipeline": "muffin_behavioral",
+    "sources": ["priority_arbiter.v"],
+    "fixtures": {
+        "testbench": "priority_arbiter_tb.v",
+        "expect_sa1_first_bit2": "expect_sa1_first_bit2.csv",
+        "expect_sa0_second_bit1": "expect_sa0_second_bit1.csv"
+    },
+    "note": "Conditional observability: four branches assign `grant`, so it carries four fault locations and a fault injected into one of them is inert until that branch is taken. Detectability is therefore a property of the stimulus reaching the branch rather than of the fault, which is what the two oracles pin - the first-branch fault moves only the two vectors where req[0] wins, the second-branch fault only the two where req[1] does, and each leaves the other's vectors untouched. An instrumentation that hoisted the injection out of the conditional and applied it wherever `grant` is assigned would emit valid RTL that changes vectors the real fault leaves alone. Distinct from mux4, which selects with nested conditional operators inside a single assignment and therefore has one location. Source line numbers are load-bearing: they are the only attribute separating the four locations."
+}

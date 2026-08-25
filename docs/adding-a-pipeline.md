@@ -53,11 +53,34 @@ runs:
 ```
 
 Equality only, values compared as strings, and it must match **exactly one**
-record. A design that assigns the same signal in several branches (an
-`if`/`else` reset, a `case` with one target) produces several faults sharing
-`{signal, bit, type}`, so such a selector is ambiguous. Either add `line` to the
-`where` clause, or write the design with one assignment per signal — the corpus
-prefers the latter, because line numbers move.
+record. A design that assigns the same signal in several places — an `if`/`else`
+chain, a vector built a bit or a slice at a time — produces several faults
+sharing `{signal, bit, type}`, so such a selector is ambiguous. Add `line` to
+the `where` clause to say which assignment.
+
+Both shapes are wanted. Most designs should keep one assignment per signal,
+because line numbers move and a selector naming one is fragile. But a fault
+location **is** an assignment rather than a signal, and for a long time no
+fixture said so: `counter_load`, `pipeline3` and `param_counter` each carry a
+comment explaining that they were written with a single assignment *in order to*
+keep the selector unambiguous, which meant the multi-location case went
+untested. `nibble_swap`, `priority_arbiter`, `bit_reverse` and
+`saturating_counter` cover it now, and each says in its header that its line
+numbers are load-bearing.
+
+Three things follow from a location being an assignment, and each of those
+designs pins one: a location's `width` is the assignment's width, so `bit` on a
+part-select counts from the slice (bit 0 of `y[7:4]` is `y[4]`, not `y[0]`); a
+one-bit assignment to one bit of a wider vector is injected as a literal and
+must leave its siblings alone; and a fault inside a branch is inert until that
+branch runs.
+
+One shape has no fixture: split the target across *continuous* assignments
+(`assign y[7:4] = ...; assign y[3:0] = ...;`) and both locations come back with
+`line: 0` and an empty `source`, identical in every field, so neither can be
+named at all — hif-muffin#24. An unresolvable selector raises before any
+simulation runs, so it aborts the suite rather than producing an expected
+failure; there is deliberately no design in that form.
 
 **Golden equivalence is mandatory.** Every Muffin behavioral design must assert
 that the instrumented design with the fault disabled reproduces the original RTL

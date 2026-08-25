@@ -1,0 +1,13 @@
+{
+    "top": "nibble_swap",
+    "pipeline": "muffin_behavioral",
+    "sources": [
+        "nibble_swap.v"
+    ],
+    "fixtures": {
+        "testbench": "nibble_swap_tb.v",
+        "expect_sa1_high_bit0": "expect_sa1_high_bit0.csv",
+        "expect_sa0_low_bit3": "expect_sa0_low_bit3.csv"
+    },
+    "note": "The corpus's first Muffin design in which one signal carries more than one fault location. Every earlier one was written with a single assignment per signal so that {signal, bit, type} names exactly one fault - counter_load, pipeline3 and param_counter all say so - which meant the disambiguating attribute in the fault record, `line`, had never been exercised. The property under test is what `bit` is relative to: a location is the assignment, not the declared signal, so its width is the part-select's 4 rather than y's 8, and bit 0 of the y[7:4] assignment is the physical bit y[4]. Numbering against the declared signal would put it at y[0] - still valid eight-bit RTL, and wrong. Source line numbers are load-bearing here: they are the only attribute separating the two locations, so moving either assignment breaks the selectors. Writing this design turned up hif-muffin#24: spelled with two continuous assignments instead of a procedural block, both y locations come back with line 0 and an empty source and cannot be named by any attribute at all. That form therefore has no fixture here - an unresolvable selector is a hard error in the runner, not an expected failure."
+}
