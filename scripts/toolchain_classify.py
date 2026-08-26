@@ -9,11 +9,15 @@ deliberate-rejection macros (messageError/messageAssert, hif-core's
 Log.cpp) call exit(EXIT_FAILURE) - never a signal. A signal-terminated
 process is never HIF's own controlled rejection path in this codebase.
 """
+import functools
+import os
 import re
 import shutil
 import subprocess
 import time
 from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
 
 DEFAULT_TIMEOUT_S = 60
 # FAIL is produced by validation only (see validators.py) - a tool that exits
@@ -31,20 +35,121 @@ CLEAN_REJECT_PATTERNS = [
 ]
 
 
+@functools.lru_cache(maxsize=1)
+def workspace_toolchain():
+    """The toolchain build_toolchain.py leaves in .workspace, if there is one.
+
+    Read automatically so this repository works with no configuration: after
+    `scripts/build_toolchain.py`, the runners find the tools with no flags, no
+    `source`, and no paths for anyone to fill in.
+
+    Returns None when .workspace has no toolchain.env - an absent or partial
+    workspace is the normal state on a fresh clone, not an error.
+    """
+    env_path = ROOT / ".workspace" / "toolchain.env"
+    if not env_path.exists():
+        return None
+    values = {}
+    for line in env_path.read_text().splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        values[key.strip()] = value.strip()
+    prefix = values.get("PREFIX")
+    if not prefix:
+        return None
+    return {
+        "bin": Path(prefix) / "bin",
+        "build_type": values.get("BUILD_TYPE", "unknown"),
+        "refs": {k[:-4].lower().replace("_", "-"): v
+                 for k, v in values.items() if k.endswith("_REF")},
+        "built_at": time.strftime("%Y-%m-%d %H:%M", time.localtime(env_path.stat().st_mtime)),
+    }
+
+
 def find_tool(name, bin_dir=None):
-    """Resolve a tool binary by name, under --bin-dir first, then PATH."""
+    """Resolve a tool binary by name: --bin-dir, then PATH, then .workspace.
+
+    The .workspace fallback is deliberately ranked *last*. A developer who
+    prepends their own build directories to PATH is making an explicit choice -
+    usually to test a fix that is not pushed anywhere yet, which
+    build_toolchain.py cannot see because it fetches from the remote - and a
+    convenience fallback must not silently override that. Ranking it below PATH
+    also makes this change purely additive: no invocation that worked before
+    resolves differently now.
+    """
     if bin_dir:
         candidate = Path(bin_dir) / name
         if candidate.exists():
             return str(candidate)
     found = shutil.which(name)
-    if not found:
-        raise SystemExit(
-            f"required tool '{name}' not found on PATH or under --bin-dir "
-            f"(did you `source .workspace/toolchain.env` and add $PREFIX/bin "
-            f"to PATH, or pass --bin-dir?)"
-        )
-    return found
+    if found:
+        return found
+    toolchain = workspace_toolchain()
+    if toolchain:
+        candidate = toolchain["bin"] / name
+        if candidate.exists():
+            return str(candidate)
+    raise SystemExit(
+        f"required tool '{name}' not found under --bin-dir, on PATH, or in "
+        f".workspace (run `python3 scripts/build_toolchain.py`, or put your own "
+        f"build directories on PATH, or pass --bin-dir)"
+    )
+
+
+def activate_toolchain(bin_dir=None):
+    """Prepare the environment for the toolchain this run will use, and
+    describe it.
+
+    Returns the lines to print. Called once, before any design runs.
+
+    The preparation half is not optional. The binaries build_toolchain.py
+    installs carry no RPATH or RUNPATH, so `$PREFIX/lib` has to be on
+    LD_LIBRARY_PATH or they fail to start - and a tool that cannot start is
+    recorded as CRASH, which reads like a compiler bug in the design rather than
+    a missing library.
+
+    It is applied *only* when .workspace is genuinely the winning source.
+    Injecting it unconditionally would be actively harmful: LD_LIBRARY_PATH is
+    searched before DT_RUNPATH, so it could silently pull a locally built tool
+    onto the workspace's older libhif - the exact "validated the wrong binary"
+    failure this banner exists to prevent.
+
+    The description half is printed on every run because that failure is
+    otherwise silent: testing against a toolchain other than the one you meant,
+    and reading the result as if it were about your change.
+    """
+    try:
+        probe = find_tool("verilog2hif", bin_dir)
+    except SystemExit:
+        return ["toolchain: none found (verilog2hif is missing)"]
+
+    toolchain = workspace_toolchain()
+    in_workspace = toolchain is not None and str(toolchain["bin"]) in probe
+
+    if in_workspace:
+        lib = Path(toolchain["bin"]).parent / "lib"
+        existing = os.environ.get("LD_LIBRARY_PATH", "")
+        if str(lib) not in existing.split(os.pathsep):
+            os.environ["LD_LIBRARY_PATH"] = (
+                f"{lib}{os.pathsep}{existing}" if existing else str(lib)
+            )
+        try:
+            shown = os.path.relpath(toolchain["bin"], ROOT)
+        except ValueError:
+            shown = str(toolchain["bin"])
+        lines = [f"toolchain: {shown}"]
+        refs = toolchain["refs"]
+        names = sorted(refs)
+        for i in range(0, len(names), 2):
+            pair = "  ".join(f"{n} {refs[n]}" for n in names[i:i + 2])
+            lines.append(f"  {pair}")
+        lines.append(f"  built {toolchain['built_at']} ({toolchain['build_type']})")
+        return lines
+
+    source = "--bin-dir" if bin_dir and probe.startswith(str(Path(bin_dir))) else "PATH"
+    return [f"toolchain: {source} ({probe})"]
 
 
 class Tools:

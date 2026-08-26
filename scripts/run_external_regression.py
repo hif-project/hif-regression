@@ -41,6 +41,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from toolchain_classify import (  # noqa: E402
     STATUS_SEVERITY,
     Tools,
+    activate_toolchain,
     classify,
     run_tool,
     trim_result,
@@ -273,6 +274,11 @@ def main():
     cache_root = Path(args.cache_dir).resolve()
     cache_root.mkdir(parents=True, exist_ok=True)
 
+    # Same resolution and the same library preparation as the curated runner:
+    # Tools() finds the binaries, but the installed ones carry no RPATH.
+    for line in activate_toolchain(args.bin_dir):
+        print(line)
+    print()
     tools = Tools(args.bin_dir)
     work_root = (Path(args.work_dir) if args.work_dir else Path("reports") / ".run" / "external").resolve()
     if work_root.exists():
