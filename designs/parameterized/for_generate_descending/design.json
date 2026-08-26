@@ -1,0 +1,12 @@
+{
+    "top": "for_generate_descending",
+    "pipeline": "behavioral_roundtrip",
+    "sources": [
+        "for_generate_descending.v"
+    ],
+    "fixtures": {
+        "testbench": "for_generate_descending_tb.v",
+        "expect_behavior": "expect_behavior.csv"
+    },
+    "note": "A `for generate` counting down with `i > 0`, marking every place the bus changes value between adjacent bits. End-to-end cover for the `op_gt` half of hif-core#24, fixed by hif-core 5603a2a: the expansion range started at the condition bound rather than at the lowest value the index reaches, so a loop running i = 7 down to 1 elaborated as i = 6 down to 0 - the top lane left with no driver and every other lane reading one bit too low. The step is one, which is the point: hif-core#24 was reported as a non-unit-step defect and this half was wrong at every step, so for_generate_strided does not cover it. Behavioural because the structural pipeline cannot see it - the regenerated design reparses cleanly whichever iterations it was given. Filed under parameterized/ with the other generate designs, since the question is elaboration rather than the logic."
+}
