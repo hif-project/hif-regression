@@ -21,8 +21,9 @@
 - **If a genuine Muffin behavioral bug appears, STOP.** Do not modify `hif-muffin`. Report reproducer, expected, actual, artifacts, likely layer.
 - **Placeholder semantics are fixed:** scalar `{input} {workdir} {name} {top} {compiled} {trace} {rundir}` substitute within a token; list `{inputs} {sources} {defines} {params} {options}` must be the entire token.
 - **Statuses:** `PASS < CLEAN_REJECT < TIMEOUT < FAIL < CRASH`. `FAIL` is produced by validation only.
-- **Pre-refactor baseline** is `/tmp/claude-1000/-home-enrico-repository-hif/3e305375-b44f-4cec-bf4b-c5ca4711e22e/scratchpad/baseline-classification.json`: 12 designs, all PASS. Stage keys and order must survive the migration unchanged.
+- **Pre-refactor baseline** is `baseline-classification.json`, captured outside the repo before the refactor: 12 designs, all PASS. Stage keys and order must survive the migration unchanged.
 - **Toolchain env** for every run: `source .workspace/toolchain.env && export PATH="$PREFIX/bin:$PATH" && export LD_LIBRARY_PATH="$PREFIX/lib:${LD_LIBRARY_PATH:-}"`.
+- **`$SCRATCH`** in the shell blocks below is any writable directory outside the repository, e.g. `SCRATCH="$(mktemp -d)"`.
 
 ## File Structure
 
@@ -800,7 +801,7 @@ Expected: 29 tests PASS
 source .workspace/toolchain.env
 export PATH="$PREFIX/bin:$PATH"
 export LD_LIBRARY_PATH="$PREFIX/lib:${LD_LIBRARY_PATH:-}"
-SCRATCH=/tmp/claude-1000/-home-enrico-repository-hif/3e305375-b44f-4cec-bf4b-c5ca4711e22e/scratchpad
+SCRATCH="${SCRATCH:-$(mktemp -d)}"
 python3 scripts/run_regression.py --manifest-label develop --report "$SCRATCH/after.json"
 python3 - <<'PY'
 import json, sys, os
@@ -1519,7 +1520,7 @@ Expected: 44 tests PASS
 ```bash
 source .workspace/toolchain.env
 export PATH="$PREFIX/bin:$PATH"; export LD_LIBRARY_PATH="$PREFIX/lib:${LD_LIBRARY_PATH:-}"
-python3 scripts/run_regression.py --manifest-label develop --report /tmp/claude-1000/-home-enrico-repository-hif/3e305375-b44f-4cec-bf4b-c5ca4711e22e/scratchpad/after7.json
+python3 scripts/run_regression.py --manifest-label develop --report "$SCRATCH/after7.json"
 ```
 
 Expected: 12 designs, all PASS
@@ -2506,7 +2507,7 @@ Expected: `external runner intact`, and an empty diff.
 - [ ] **Step 8: Record the behavioral summary**
 
 ```bash
-python3 scripts/report.py | tee /tmp/claude-1000/-home-enrico-repository-hif/3e305375-b44f-4cec-bf4b-c5ca4711e22e/scratchpad/final-summary.md
+python3 scripts/report.py | tee "$SCRATCH/final-summary.md"
 ```
 
 - [ ] **Step 9: Commit any fixes, then open the PR**
