@@ -31,11 +31,23 @@ order, and writes `.workspace/toolchain.env` with the resolved paths.
 ## Run the curated corpus
 
 ```sh
-source .workspace/toolchain.env
-export PATH="$PREFIX/bin:$PATH"
-export LD_LIBRARY_PATH="$PREFIX/lib:${LD_LIBRARY_PATH:-}"
 python3 scripts/run_regression.py --manifest-label develop
 ```
+
+Nothing to configure. The runner finds the toolchain `build_toolchain.py` left in
+`.workspace/` on its own — no flags, no `source`, no paths to fill in — and prints
+which one it picked before it starts:
+
+```
+toolchain: .workspace/install/bin
+  hif-backend develop  hif-core develop
+  hif-frontend develop  hif-muffin develop
+  built 2026-08-26 09:14 (Release)
+```
+
+Read that line. Testing against a toolchain other than the one you meant is
+otherwise silent, and the build date is what tells you `.workspace` has gone
+stale and wants another `build_toolchain.py`.
 
 Prints a per-category summary and writes `reports/curated-report.json`.
 
@@ -45,32 +57,25 @@ environment.
 
 ## Run one design against binaries you already have
 
-The fast loop while writing a design. Skip `build_toolchain.py` entirely and
-point `--bin-dir` at whatever binaries you want to test.
-
-Gather them somewhere first. Set these two to your own build directories — this
-repo makes no assumption about where your other checkouts live, and does not
-require them to be siblings of this one:
+`build_toolchain.py` fetches from the remote, so it cannot see work you have not
+pushed. When you are iterating on a fix, put your own build directories on `PATH`
+for the one command:
 
 ```sh
-frontend_build=/path/to/hif-frontend/build
-backend_build=/path/to/hif-backend/build
-
-mkdir -p /tmp/hifbin
-ln -sf "$frontend_build"/verilog2hif "$frontend_build"/vhdl2hif /tmp/hifbin/
-ln -sf "$backend_build"/hif2verilog "$backend_build"/hif2vhdl /tmp/hifbin/
+PATH="$HOME/src/hif-frontend/build:$HOME/src/hif-backend/build:$PATH" \
+  python3 scripts/run_regression.py --only my_design
 ```
 
-Then, from **this repository's root**:
+Those two are examples — use wherever your checkouts happen to be. Nothing here
+assumes a location, and they need not be siblings of this repository.
 
-```sh
-python3 scripts/run_regression.py --only my_design --bin-dir /tmp/hifbin
-```
-
-`--only` matches a substring of the design name. `--bin-dir` is searched before
-`PATH`, so this tests exactly the build you just made — which is also how you
-check that a design fails against a *reverted* fix, the only way to know it
+`PATH` beats `.workspace`, so this tests exactly the build you just made, and the
+banner names the binary it resolved so you can see that it did. That is also how
+you check a design fails against a *reverted* fix, the only way to know it
 discriminates.
+
+`--only` matches a substring of the design name. `--bin-dir` still exists for a
+single directory holding every tool, and beats both.
 
 Useful companions: `--work-dir` to keep intermediate artifacts somewhere you can
 inspect, `--timeout` for a slow stage, `--report` to write the JSON elsewhere.
@@ -83,6 +88,9 @@ Each repository owns its own CTest suite; this repo does not duplicate them.
 source .workspace/toolchain.env
 ctest --test-dir "$WORKSPACE/hif-backend/build" --output-on-failure
 ```
+
+`source` is still needed here, unlike above: `$WORKSPACE` is what names the build
+directory, and `ctest` is not ours to teach about `.workspace`.
 
 `scripts/run_ctest_suites.py` runs all of them, driven by the same
 `manifests/repositories.yaml` that drives the build order.

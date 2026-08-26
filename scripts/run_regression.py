@@ -43,7 +43,11 @@ from manifest_schema import (  # noqa: E402
 )
 from pipeline_engine import load_yaml_manifest, run_pipeline  # noqa: E402
 from placeholders import ManifestError  # noqa: E402
-from toolchain_classify import DEFAULT_TIMEOUT_S, STATUS_SEVERITY  # noqa: E402
+from toolchain_classify import (  # noqa: E402
+    DEFAULT_TIMEOUT_S,
+    STATUS_SEVERITY,
+    activate_toolchain,
+)
 
 # Report columns, ordered by severity so the table reads left-to-right from
 # "fine" to "worst". Derived from STATUS_SEVERITY rather than restated, so a
@@ -416,6 +420,11 @@ def main():
 
     total = len(designs)
     if not args.quiet:
+        # Before anything runs, say which binaries will run. Testing against a
+        # toolchain other than the one you meant fails silently otherwise.
+        print()
+        for line in activate_toolchain(args.bin_dir):
+            print(line, flush=True)
         print(f"\nRunning {total} design(s)...\n", flush=True)
     results = []
     for index, design in enumerate(designs, start=1):
