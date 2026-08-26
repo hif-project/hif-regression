@@ -1,0 +1,12 @@
+{
+    "top": "for_generate_strided",
+    "pipeline": "behavioral_roundtrip",
+    "sources": [
+        "for_generate_strided.v"
+    ],
+    "fixtures": {
+        "testbench": "for_generate_strided_tb.v",
+        "expect_behavior": "expect_behavior.csv"
+    },
+    "note": "A `for generate` whose index advances by two, folding a byte into the parity of each adjacent pair of bits. End-to-end cover for hif-core#24, fixed by hif-core 5603a2a: expansion substituted the iteration ordinal for the genvar, so a loop over 0, 2, 4, 6 elaborated over 0, 1, 2, 3 - every iteration reading its neighbour's pair, two output lanes left with no driver and two with two - at exit 0, with no diagnostic and valid Verilog out. The corpus had no strided generate at all when that fix landed, which is why it measured a byte-identical corpus: nothing here reached the defect. hif-core's own tests own the exhaustive loop-header matrix; this design asks only that ordinary HDL reaches the corrected semantics through the real toolchain, by simulation. Behavioural because the structural pipeline cannot see it - the regenerated design reparses cleanly whichever iterations it was given. Filed under parameterized/ with the other generate designs, since the question is elaboration rather than the logic. See also for_generate_descending, which covers the `op_gt` half of the same defect and which a stride cannot reach."
+}

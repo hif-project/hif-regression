@@ -1,8 +1,11 @@
 {
     "top": "casez_wildcards",
     "pipeline": "behavioral_roundtrip",
-    "sources": ["casez_wildcards.v"],
-    "fixtures": {"testbench": "casez_wildcards_tb.v"},
-    "note": "A priority encoder written with casez. CURRENTLY FAILS, DELIBERATELY, on hif-backend#84: hif2verilog regenerates it as a plain `case` with the `?` bits spelled `z`, so under exact matching every wildcard alternative is unreachable and five of eight rows fall through to the default. Behavioral because the output is valid Verilog that exits 0 and reparses cleanly - both keywords are legal around the same alternatives. Two rows need no wildcard and act as controls, so the failure reads as 'the wildcards are gone' rather than as a scrambled encoder.",
-    "expected_failure": {"issue": "hif-backend#84", "stage": "validate"}
+    "sources": [
+        "casez_wildcards.v"
+    ],
+    "fixtures": {
+        "testbench": "casez_wildcards_tb.v"
+    },
+    "note": "A priority encoder written with casez - the standard use of the construct. Covers hif-backend#84, fixed by hif-backend 54c9e82: hif2verilog used to regenerate the `casez` as a plain `case` with the `?` bits spelled `z`, so under exact matching every wildcard alternative was unreachable and five of the eight rows fell through to the default. It now emits `casez`. Behavioural because nothing else can see it: both spellings are valid Verilog around the same alternatives, and the regenerated file exits 0 and reparses cleanly either way. The 1000 and 0000 rows need no wildcard and act as controls, so a failure reads as 'the wildcards are gone' rather than as a scrambled encoder. The oracle is unchanged from when it was expected to fail; it went green on the fix alone."
 }
