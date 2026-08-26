@@ -1,10 +1,11 @@
 {
     "top": "v2vhdl_reduction_ops",
     "pipeline": "verilog_to_vhdl",
-    "sources": ["v2vhdl_reduction_ops.v"],
+    "sources": [
+        "v2vhdl_reduction_ops.v"
+    ],
     "fixtures": {
         "testbench": "v2vhdl_reduction_ops_tb.v"
     },
-    "note": "Verilog reduction operators toward VHDL, and the design that finds hif-backend#92. hif2vhdl aborts on ORRD, ANDRD and XORRD alike - \"This operator should be managed in refinement steps\", exit 134, with no .vhd written - while hif2verilog prints all three correctly from the same HIF, so the gap is in the VHDL backend and not in the representation. All three are in one fixture because they are one defect at one abort site, not three; the pipeline stops at the first non-PASS, so only the first is reached today, and after #92 the design becomes a behavioral check of all three through VHDL and back. Distinct from combinational/reduction_ops, whose question is Muffin fault instrumentation on the Verilog path.",
-    "expected_failure": {"issue": "hif-backend#92", "stage": "to_vhdl"}
+    "note": "Verilog reduction operators toward VHDL, and the design that found hif-backend#92, fixed by hif-backend ddfec87: hif2vhdl aborted on ORRD, ANDRD and XORRD alike - \"This operator should be managed in refinement steps\", exit 134, with no .vhd written - while hif2verilog printed all three correctly from the same HIF, so the gap was in the VHDL backend and not in the representation. Each is now lowered into an explicit chain of bit operations, e.g. `|a` becomes `((a(0) or a(1)) or a(2)) or a(3)`. All three are in one fixture because they were one defect at one abort site, not three, and the design now exercises all three through VHDL and back - which is what the fixture was written for. No VHDL analyser is installed here or in CI, so the gate on the emitted VHDL is that vhdl2hif reparses it. Distinct from combinational/reduction_ops, whose question is Muffin fault instrumentation on the Verilog path."
 }

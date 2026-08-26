@@ -1,0 +1,42 @@
+# Two claims, and deliberately not "the regenerated design matches the source".
+#
+# The oracle is written out by hand from the Verilog - the loop runs over
+# bits 0, 2, 4 and 6 in turn, each iteration folding its own pair - and *both* the
+# source and the regenerated design are held to it. A trace_equal between the
+# two would pass if the toolchain and the oracle were wrong in the same way,
+# which for an elaboration defect is exactly the risk: the regenerated design
+# is valid Verilog and simulates cleanly whichever iterations it was given.
+#
+# rtl_matches_spec is not redundant with that. If it fails, the fixture or the
+# expectation is wrong and no conclusion about HIF follows; if it passes and
+# regenerated_matches_spec fails, the toolchain changed the design. The two
+# separate "the design is not what I thought" from "HIF broke it".
+#
+# Every output bit is driven exactly once, on purpose. An earlier draft of this
+# fixture left the untouched lanes floating and read the driven set off the 'z'
+# pattern, which is the most direct way to ask the question - but hif2verilog
+# regenerates a partially driven wire as a fully declared reg, so those bits
+# came back 'x' and the fixture failed for a reason that had nothing to do with
+# hif-core#24. Asking the question through the data instead keeps this design
+# answerable today.
+#
+# Verified to discriminate, against hif-core c726127 - one commit before
+# 5603a2a - with everything else held fixed. rtl_matches_spec still passes and
+# regenerated_matches_spec fails on all five rows: the regenerated design gives
+# xx00, xx11, xx11, xx10, xx00. The two x's are dout[3] and dout[2], which the
+# ordinal window never reaches, and rows three and five are wrong in the data
+# as well - 11 and 00 where the design says 00 and 01 - because the two
+# surviving lanes are driven twice and read the wrong pairs.
+
+runs: []
+
+expectations:
+  - id: rtl_matches_spec
+    use: expected_trace
+    left:     {from: simulate_reference, run: reference}
+    expected: {fixture: expect_behavior}
+
+  - id: regenerated_matches_spec
+    use: expected_trace
+    left:     {from: simulate_regenerated, run: regenerated}
+    expected: {fixture: expect_behavior}
