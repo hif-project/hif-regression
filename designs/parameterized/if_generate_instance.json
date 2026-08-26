@@ -1,5 +1,4 @@
 {
     "top": "if_generate_instance",
-    "note": "A static if generate with a module instance in one branch. CURRENTLY FAILS, DELIBERATELY, on hif-frontend#32: verilog2hif aborts in hif-core's simplify.cpp before the backend is reached. Deliberately paired with if_generate.v, whose branches hold continuous assignments and which translates at exit 0 and fails in the backend on hif-backend#86 - two defects, two repositories, and the pair is what tells them apart.",
-    "expected_failure": {"issue": "hif-frontend#32", "stage": "frontend"}
+    "note": "A static if generate with a module instance in one branch. Fixed: hif-frontend#32 was hif-core's constant folder never folding a reduction over a constant, so the else branch's condition - which Verilog builds as the negation of or_reduce(cond) - never reached a ConstValue and _simplifyIfGenerate could not decide which branch survived. hif-core c726127 folds it; hif-frontend 329b178 stops partial flattening looping forever afterwards. Still paired with if_generate.v, which continues to fail in the backend on hif-backend#86 - the pair is what keeps the two apart, and it is more useful now that one half passes."
 }
