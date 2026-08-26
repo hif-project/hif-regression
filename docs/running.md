@@ -46,16 +46,24 @@ environment.
 ## Run one design against binaries you already have
 
 The fast loop while writing a design. Skip `build_toolchain.py` entirely and
-point `--bin-dir` at whatever binaries you want to test:
+point `--bin-dir` at whatever binaries you want to test.
+
+Gather them somewhere first. Set these two to your own build directories — this
+repo makes no assumption about where your other checkouts live, and does not
+require them to be siblings of this one:
 
 ```sh
-mkdir -p /tmp/hifbin && cd /tmp/hifbin
-ln -sf ~/repositories/hif/hif-frontend/build/verilog2hif .
-ln -sf ~/repositories/hif/hif-frontend/build/vhdl2hif .
-ln -sf ~/repositories/hif/hif-backend/build/hif2verilog .
-ln -sf ~/repositories/hif/hif-backend/build/hif2vhdl .
+frontend_build=/path/to/hif-frontend/build
+backend_build=/path/to/hif-backend/build
 
-cd ~/repositories/hif/hif-regression
+mkdir -p /tmp/hifbin
+ln -sf "$frontend_build"/verilog2hif "$frontend_build"/vhdl2hif /tmp/hifbin/
+ln -sf "$backend_build"/hif2verilog "$backend_build"/hif2vhdl /tmp/hifbin/
+```
+
+Then, from **this repository's root**:
+
+```sh
 python3 scripts/run_regression.py --only my_design --bin-dir /tmp/hifbin
 ```
 
