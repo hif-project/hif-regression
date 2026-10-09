@@ -28,8 +28,14 @@ jobs:
           # and vvp, never which version. Nothing here builds or vendors it.
           sudo apt-get install -y g++ libpoco-dev flex bison iverilog
 
+      # A virtual environment keeps this independent of how the runner's system Python
+      # is configured (recent Ubuntu releases refuse `pip install` into the system
+      # Python). Later steps pick it up through PATH.
       - name: Install Python dependencies
-        run: pip install pyyaml
+        run: |
+          python3 -m venv .venv
+          .venv/bin/pip install pyyaml
+          echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
 
       # Cheap, and independent of the toolchain build - so a broken engine is
       # reported in seconds rather than after a full build.
