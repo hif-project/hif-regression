@@ -12,8 +12,63 @@ on:
   workflow_dispatch: {}
 
 jobs:
+  # Skips the night when nothing it would test has moved: the commit of this
+  # repository and the develop heads of every repository in the manifest are
+  # the same as in the last green run (scripts/nightly_fingerprint.py). It
+  # still runs when started by hand, every Sunday (the runner image, compilers
+  # and external benchmarks can change without a commit, and flaky tests show
+  # up), and whenever the fingerprint cannot be computed.
+  changes:
+    name: Anything new since the last green run?
+    runs-on: ${{ fromJSON(github.event.pull_request.head.repo.fork != true && vars.CI_RUNS_ON || '"ubuntu-latest"') }}
+    outputs:
+      run: ${{ steps.decide.outputs.run }}
+      key: ${{ steps.fingerprint.outputs.key }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fingerprint (this repository + the develop heads of the manifest)
+        id: fingerprint
+        continue-on-error: true
+        run: |
+          python3 -m venv .venv
+          .venv/bin/pip install --quiet pyyaml
+          .venv/bin/python scripts/nightly_fingerprint.py --manifest develop --self-sha "$GITHUB_SHA" > fingerprint.txt
+          echo "key=nightly-green-develop-$(sha256sum fingerprint.txt | cut -c1-16)" >> "$GITHUB_OUTPUT"
+
+      - name: Look for a green run with the same fingerprint
+        id: last
+        if: steps.fingerprint.outcome == 'success'
+        uses: actions/cache/restore@v4
+        with:
+          path: fingerprint.txt
+          key: ${{ steps.fingerprint.outputs.key }}
+          lookup-only: true
+
+      - name: Decide
+        id: decide
+        env:
+          EVENT: ${{ github.event_name }}
+          FINGERPRINTED: ${{ steps.fingerprint.outcome == 'success' }}
+          SEEN: ${{ steps.last.outputs.cache-hit == 'true' }}
+        run: |
+          if [ "$EVENT" = workflow_dispatch ]; then run=true; why="started by hand"
+          elif [ "$FINGERPRINTED" != true ]; then run=true; why="the fingerprint could not be computed"
+          elif [ "$(date -u +%u)" = 7 ]; then run=true; why="weekly run (Sunday)"
+          elif [ "$SEEN" = true ]; then run=false; why="nothing moved since the last green run"
+          else run=true; why="something moved since the last green run"
+          fi
+          echo "run=$run" >> "$GITHUB_OUTPUT"
+          {
+            echo "### Nightly: $([ "$run" = true ] && echo runs || echo skipped) ($why)"
+            if [ -s fingerprint.txt ]; then echo '```'; cat fingerprint.txt; echo '```'; fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
   regression:
     name: Floating-develop regression
+    needs: changes
+    # !cancelled(): if the check itself breaks, the regression still runs (it can only save runs, never lose them).
+    if: ${{ !cancelled() && needs.changes.outputs.run != 'false' }}
     # Runs on the lab's self-hosted runners when the CI_RUNS_ON variable is set (JSON list of labels)
     # and the run does not come from a fork; otherwise on GitHub-hosted runners.
     runs-on: ${{ fromJSON(github.event.pull_request.head.repo.fork != true && vars.CI_RUNS_ON || '"ubuntu-latest"') }}
@@ -84,3 +139,15 @@ jobs:
           name: regression-reports-${{ github.run_id }}
           path: reports/*.json
           if-no-files-found: warn
+
+      # Only a fully green run is remembered: after a failure the next night runs again.
+      - name: Remember this green run
+        if: success() && needs.changes.outputs.key != ''
+        run: echo "${{ needs.changes.outputs.key }}" > fingerprint.txt
+
+      - name: Save the fingerprint of this green run
+        if: success() && needs.changes.outputs.key != ''
+        uses: actions/cache/save@v4
+        with:
+          path: fingerprint.txt
+          key: ${{ needs.changes.outputs.key }}
