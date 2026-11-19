@@ -3,13 +3,14 @@
 --
 -- `std_logic_vector(0 to 3)` numbers the vector from the left: a(0) is the
 -- leftmost element and a(3) the rightmost, the opposite of the `downto` form
--- every other VHDL design here uses. hif2verilog prints the port descending as
--- [3:0] but leaves index expressions index-preserving, so a(0) becomes a[0] -
--- the least significant bit of a descending vector, which is the other end.
+-- every other VHDL design here uses. hif2verilog used to print the port
+-- descending as [3:0] but leave index expressions index-preserving, so a(0)
+-- became a[0] - the least significant bit of a descending vector, which is the
+-- other end. It now prints the port [0:3].
 --
 -- Only the two ends are read. The design deliberately declares no constant of
--- an ascending type: that trips the second half of #91, where the literal's
--- size is computed as left-right+1 and comes out negative, and two defects in
+-- an ascending type: that tripped the second half of #91, where the literal's
+-- size was computed as left-right+1 and came out negative, and two defects in
 -- one fixture would make the failure harder to attribute.
 library ieee;
 use ieee.std_logic_1164.all;
