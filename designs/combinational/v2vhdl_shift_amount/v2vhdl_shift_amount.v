@@ -1,17 +1,19 @@
 // Verilog logical shifts carried toward VHDL. Covers hif-backend#94.
 //
-// hif2vhdl lowers each shift through to_integer, which throws away the vector
-// nature of the operand, and then has to apply `sll` to the integer that comes
-// back:
+// hif2vhdl used to lower each shift through to_integer, which threw away the
+// vector nature of the operand, and then had to apply `sll` to the integer that
+// came back:
 //
 //   y <= std_logic_vector(to_signed(to_integer(to_unsigned(a)) sll
 //                                  to_integer(to_unsigned(n)), 8));
 //
-// Two things there are not VHDL. `to_unsigned(a)` calls numeric_std's
+// Two things there were not VHDL. `to_unsigned(a)` called numeric_std's
 // to_unsigned - which is (natural, natural) - with a single std_logic_vector;
 // the conversion meant is the cast `unsigned(a)`. And `sll` is defined on array
-// types, not on integers. vhdl2hif accepts the file anyway, and hif2verilog
-// then cannot resolve the call and aborts.
+// types, not on integers. vhdl2hif accepted the file anyway, and hif2verilog
+// then could not resolve the call and aborted. It now writes
+//
+//   y <= std_logic_vector(unsigned(a) sll to_integer(unsigned(n)));
 //
 // Both directions are here because they are one defect in one lowering, not
 // two. hif2verilog prints the same HIF operators natively as `a << n` and

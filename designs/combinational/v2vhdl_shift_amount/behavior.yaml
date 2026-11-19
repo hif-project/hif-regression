@@ -1,15 +1,16 @@
 # One claim: a full excursion through VHDL and back preserves behaviour exactly.
-# It does not complete today - hif2verilog aborts on the VHDL hif2vhdl wrote,
-# see hif-backend#94 - so this design is a declared expected failure at
-# `to_verilog`.
+# It did not complete - hif2verilog aborted on the VHDL hif2vhdl wrote, see
+# hif-backend#94, where it was a declared expected failure at `to_verilog` - and
+# now does.
 #
-# The stage is three operations after the tool at fault, and that is the point
-# worth recording: hif2vhdl exits 0 having written invalid VHDL, and vhdl2hif
-# reparses it and exits 0 too. Nothing before hif2verilog objects. A structural
-# pipeline ending at the reparse would call this design a PASS.
+# The stage was three operations after the tool at fault, and that is the point
+# worth recording: hif2vhdl exited 0 having written invalid VHDL, and vhdl2hif
+# reparsed it and exited 0 too. Nothing before hif2verilog objected. A
+# structural pipeline ending at the reparse would have called this design a
+# PASS.
 #
 # No values are checked in - the reference simulation of the untouched RTL
-# supplies them. The stimulus is written for the day #94 lands.
+# supplies them.
 #
 # a is 10010011 throughout, and the four rows vary only the amount:
 #
