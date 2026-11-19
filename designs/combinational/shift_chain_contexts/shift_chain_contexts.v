@@ -8,7 +8,7 @@
 // extension has to be by sign. A cast of a shift is not part-selectable, so the sign
 // extension printed for every other operand is not available and the zero-extension fallback
 // is used. Needs the shift extended where it is shifted, or the frontend not widening a shift
-// to the width of its count at all. Not filed; see the note.
+// to the width of its count at all. Tracked as hif-backend#109.
 module shift_chain_contexts(
     input  signed [7:0] s,
     input  [2:0] n,

@@ -6,7 +6,7 @@
 // every index and part-select with the source's own indices: p[9:6], p[5] against a [7:0]
 // declaration, which are out of range and read as x. Develop does the same. Printing any
 // constant range as declared, [9:2], and reading the bounds the same way for both directions
-// would fix it. Not filed; see the note.
+// would fix it. Tracked as hif-backend#110.
 module descending_offset_vectors(
     input  [9:2] p,
     input  signed [11:4] sp,

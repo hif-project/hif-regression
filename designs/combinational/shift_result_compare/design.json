@@ -7,9 +7,9 @@
     "fixtures": {
         "testbench": "shift_result_compare_tb.v"
     },
-    "note": "An arithmetic shift of a signed value compared with -1. The comparison is true when the shifted value is all ones, which for s >>> 1 is s = -1 or s = -2. Regenerated, the shift result is widened by zero-extension before the compare with the 32-bit constant and so is never equal to it. Wrong on develop as well as on the current branches (2 of 400 random vectors agree by accident). CURRENTLY FAILS, DELIBERATELY. The same cause as shift_chain_contexts: a cast of a shift is zero-extended rather than sign-extended. No GitHub issue yet: the marker names this note instead.",
+    "note": "An arithmetic shift of a signed value compared with -1. The comparison is true when the shifted value is all ones, which for s >>> 1 is s = -1 or s = -2. Regenerated, the shift result is widened by zero-extension before the compare with the 32-bit constant and so is never equal to it. Wrong on develop as well as on the current branches. It differs exactly where the source is true, s = -1 and s = -2, so only 2 of 400 random vectors show it. CURRENTLY FAILS, DELIBERATELY. The same cause as shift_chain_contexts: a cast of a shift is zero-extended rather than sign-extended. Tracked as hif-backend#109.",
     "expected_failure": {
-        "issue": "unfiled (see note)",
+        "issue": "hif-backend#109",
         "stage": "validate"
     }
 }

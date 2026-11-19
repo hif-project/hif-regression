@@ -7,9 +7,9 @@
     "fixtures": {
         "testbench": "v2vhdl_conditional_signedness_tb.v"
     },
-    "note": "An unsigned arm and a signed arm of a conditional through VHDL and back. Verilog zero-extends the signed arm, because the arms share one type and an unsigned a makes it unsigned; the VHDL has resize(t, 8) on a signed t, which sign-extends, so t = -1 reads 8'hFF where the source says 8'h0F. CURRENTLY FAILS, DELIBERATELY: the cast is lowered by hif-core's VHDLCastAnalysis::_mapVectors, which resizes a Signed source with its own sign whatever the target. Develop did not show it only because it dropped `signed` from the port. A local change that zero-extends for an unsigned target fixes this design and breaks two others (the frontend casts a signed operand to an unsigned type and relies on the sign extension in `-(s >>> 1)` and `{(t >>> 1), u}`), so the fix belongs with the frontend typing a cast by the context of the whole expression, which is larger than the work that found it. No GitHub issue yet: the marker names this note instead.",
+    "note": "An unsigned arm and a signed arm of a conditional through VHDL and back. Verilog zero-extends the signed arm, because the arms share one type and an unsigned a makes it unsigned; the VHDL has resize(t, 8) on a signed t, which sign-extends, so t = -1 reads 8'hFF where the source says 8'h0F. CURRENTLY FAILS, DELIBERATELY: the cast is lowered by hif-core's VHDLCastAnalysis::_mapVectors, which resizes a Signed source with its own sign whatever the target. Develop did not show it only because it dropped `signed` from the port. A local change that zero-extends for an unsigned target fixes this design and breaks two others (the frontend casts a signed operand to an unsigned type and relies on the sign extension in `-(s >>> 1)` and `{(t >>> 1), u}`), so the fix belongs with the frontend typing a cast by the context of the whole expression, which is larger than the work that found it. Tracked as hif-core#30.",
     "expected_failure": {
-        "issue": "unfiled (see note)",
+        "issue": "hif-core#30",
         "stage": "validate"
     }
 }

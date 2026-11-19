@@ -7,9 +7,9 @@
     "fixtures": {
         "testbench": "descending_offset_vectors_tb.v"
     },
-    "note": "Vectors that run down but not to bit 0, [9:2] and [11:4]. hif2verilog declares them [7:0] whatever their bounds were, but prints every index and part-select with the source's own indices, p[9:6] and p[5], which are out of range against the declaration and read as x. Wrong on develop as well (400 of 400 vectors, per the review that found it). CURRENTLY FAILS, DELIBERATELY. Printing any constant range as declared, and reading the bounds the same way for both directions of a range, would fix it; the bound-reading helpers added for ascending ranges in hif-backend#91 and #81 are the place. No GitHub issue yet: the marker names this note instead.",
+    "note": "Vectors that run down but not to bit 0, [9:2] and [11:4]. hif2verilog declares them [7:0] whatever their bounds were, but prints every index and part-select with the source's own indices, p[9:6] and p[5], which are out of range against the declaration and read as x. Wrong on develop as well (400 of 400 vectors, per the review that found it). CURRENTLY FAILS, DELIBERATELY. Printing any constant range as declared, and reading the bounds the same way for both directions of a range, would fix it; the bound-reading helpers added for ascending ranges in hif-backend#91 and #81 are the place. Tracked as hif-backend#110.",
     "expected_failure": {
-        "issue": "unfiled (see note)",
+        "issue": "hif-backend#110",
         "stage": "validate"
     }
 }

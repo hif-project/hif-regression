@@ -10,7 +10,7 @@
 // an unsigned. Making the cast zero-extend for an unsigned target fixes this and breaks
 // `-(s >>> 1)` and `{(t >>> 1), u}`, where the frontend casts a signed operand to an
 // unsigned type and relies on the sign extension, so the real fix is the frontend typing
-// the cast by the context of the whole expression. Not filed; see the note.
+// the cast by the context of the whole expression. Tracked as hif-core#30.
 module v2vhdl_conditional_signedness(
     input  [7:0] a,
     input  signed [3:0] t,
