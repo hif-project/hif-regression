@@ -1,0 +1,11 @@
+{
+    "top": "ascending_vectors",
+    "pipeline": "behavioral_roundtrip",
+    "sources": [
+        "ascending_vectors.v"
+    ],
+    "fixtures": {
+        "testbench": "ascending_vectors_tb.v"
+    },
+    "note": "An ascending vector [0:7], whose low-order bits are indices 4 to 7, truncated, widened and summed, and a descending [11:4] as the control. A truncating assignment needs a part-select of the low-order bits, which was always printed [width-1:0]. Once hif-backend#91 made declarations keep an ascending range, that select no longer matched the declaration: `a[3:0]` on a [0:7] is rejected by Verilog as out of order, and the file did not compile. Found in review of the #91 change. The descending [11:4] is declared [7:0] on the way back whatever its bounds were, so its [3:0] select is right and is there to say so. Behavioral against the design's own source."
+}

@@ -1,0 +1,13 @@
+# One claim: the regenerated design behaves like the design it came from.
+#
+# `trunc_up` and `trunc_offset` are the truncations that need the low-order bits of a
+# vector that does not run down to 0; `widen_up` and `sum_up` check the widening of an
+# ascending vector is on the high-order side, which for [0:3] is the left.
+
+runs: []
+
+expectations:
+  - id: regenerated_matches_rtl
+    use: trace_equal
+    left:  {from: simulate_reference,   run: reference}
+    right: {from: simulate_regenerated, run: regenerated}
