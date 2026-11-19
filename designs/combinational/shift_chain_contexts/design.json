@@ -1,0 +1,15 @@
+{
+    "top": "shift_chain_contexts",
+    "pipeline": "behavioral_roundtrip",
+    "sources": [
+        "shift_chain_contexts.v"
+    ],
+    "fixtures": {
+        "testbench": "shift_chain_contexts_tb.v"
+    },
+    "note": "Chains of shifts of a signed operand, Verilog to Verilog: `(s >>> n) >>> 1` and `(s << 4) >>> 2`. Both come back different on most vectors, on develop as well as on the current branches. The frontend widens a shift to the width of its 32-bit integer count and casts the inner shift to it; the cast is then zero-extended, because an expression is not something a part-select can be taken of and the sign extension printed for other operands is not available, where the whole expression is signed and the extension has to be by sign. CURRENTLY FAILS, DELIBERATELY. The fix is either to extend the shifted operand where it is shifted or to stop the frontend widening a shift to the width of its count; neither is small. No GitHub issue yet: the marker names this note instead.",
+    "expected_failure": {
+        "issue": "unfiled (see note)",
+        "stage": "validate"
+    }
+}
