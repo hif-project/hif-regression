@@ -1,6 +1,7 @@
 # One claim: in the Verilog hif2verilog regenerates from this VHDL, index 0 of
-# an ascending vector still names the leftmost element. It does not - see
-# hif-backend#91 - so this design is a declared expected failure at `validate`.
+# an ascending vector still names the leftmost element. It did not - see
+# hif-backend#91, where it was a declared expected failure at `validate` - and
+# now does: the port is printed ascending, [0:3], and a(0) stays a[0].
 #
 # No VHDL simulator exists here, so the expected trace is computed by hand from
 # the VHDL rather than compared against a reference run of the source. The

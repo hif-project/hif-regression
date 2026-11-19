@@ -1,0 +1,11 @@
+{
+    "top": "shift_in_unsigned_context",
+    "pipeline": "behavioral_roundtrip",
+    "sources": [
+        "shift_in_unsigned_context.v"
+    ],
+    "fixtures": {
+        "testbench": "shift_in_unsigned_context_tb.v"
+    },
+    "note": "An arithmetic shift of a signed value added to an unsigned operand, and the same shift bare. The shift count is self-determined; the shifted operand is not. The sum has an unsigned operand, so the expression is unsigned and the shifted operand is converted before the shift: a logical shift. Bare, the shift is arithmetic. Found in re-review of the hif-core VerilogAnalysis change that types a shift by its first operand alone: it fixed the bare case through VHDL and made the sum wrong on 345 of 400 vectors. Behavioral, because the regenerated text is valid Verilog that reparses cleanly. The signed counterpart, (s >>> n) + c with a signed c, is also wrong - on develop too, since a shift in a sum is typed by both its operands - and is deliberately not here: it would be a design that fails before and after this change, and it is not what this change is about."
+}

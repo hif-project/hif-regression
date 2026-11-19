@@ -1,0 +1,19 @@
+# One claim: a full excursion through VHDL and back preserves behaviour exactly.
+#
+# Three shifts, one amount: an arithmetic right shift of a signed value, an
+# arithmetic left shift of the same signed value, and `>>>` of an unsigned value,
+# which is a logical shift. The signed input has its top bit set in most rows so
+# the right shift fills with ones; a shift that treats it as unsigned fills with
+# zeros and reads differently on sr alone.
+#
+# The VHDL in the middle is not compared; vhdl2hif accepts text numeric_std does
+# not define, so the excursion cannot see it. What it checks is that the values
+# survive, and hif-backend's unit test checks the text.
+
+runs: []
+
+expectations:
+  - id: roundtripped_matches_rtl
+    use: trace_equal
+    left:  {from: simulate_reference,    run: reference}
+    right: {from: simulate_roundtripped, run: roundtripped}

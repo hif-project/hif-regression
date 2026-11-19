@@ -1,0 +1,12 @@
+# One claim: the regenerated design behaves like the design it came from.
+#
+# The values that tell: t negative with n[0] = 0, so the signed arm is selected and zero-extended
+# in Verilog and sign-extended in the VHDL.
+
+runs: []
+
+expectations:
+  - id: roundtripped_matches_rtl
+    use: trace_equal
+    left:  {from: simulate_reference,   run: reference}
+    right: {from: simulate_roundtripped, run: roundtripped}

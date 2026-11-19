@@ -1,0 +1,12 @@
+# One claim: the regenerated design behaves like the design it came from.
+#
+# s = -1 and s = -2 are the rows where the comparison is true in the source; they are in the
+# corner values of the stimulus.
+
+runs: []
+
+expectations:
+  - id: regenerated_matches_rtl
+    use: trace_equal
+    left:  {from: simulate_reference,   run: reference}
+    right: {from: simulate_regenerated, run: regenerated}

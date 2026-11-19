@@ -6,7 +6,8 @@
 -- mapping itself survives - `generic (WIDTH : integer := 6)` comes out as
 -- `parameter width = 6` and the port widths follow it. What does not survive is
 -- the slice: a(WIDTH-2 downto 0) is a slice of a parameter-width vector
--- anchored at bit 0, and hif2verilog emits it as bare `a`.
+-- anchored at bit 0, and hif2verilog used to emit it as bare `a`. It now prints
+-- `a[width - 2:0]`.
 --
 -- The operation is "clear the top bit". Written as a concatenation with the
 -- slice on the right, so the bit the defect adds is not the bit Verilog's

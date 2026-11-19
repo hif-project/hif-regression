@@ -1,0 +1,15 @@
+# One claim: the regenerated design behaves like the design it came from.
+#
+# The source stops at the first set bit by `disable`-ing a named block. A
+# backend that drops the block and the disable still emits valid Verilog that
+# reparses and exits 0, but the loop then runs to the end and reports the last
+# set bit (7 for 8'b1001_0110, where the source says 1). Nothing but the answer
+# differs, so this is a behavioral expectation (hif-backend#85).
+
+runs: []
+
+expectations:
+  - id: regenerated_matches_rtl
+    use: trace_equal
+    left:  {from: simulate_reference,   run: reference}
+    right: {from: simulate_regenerated, run: regenerated}

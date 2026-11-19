@@ -1,4 +1,3 @@
 {
-    "note": "An ordinary combinational for loop over a module-level integer. CURRENTLY FAILS, DELIBERATELY, on hif-backend#80: the loop index is shadowed and the write-back appended to the init and step clauses with a comma, which is not Verilog. Reachable from the plainest use of the construct - a population count - with no generate and no disable involved.",
-    "expected_failure": {"issue": "hif-backend#80", "stage": "reparse"}
+    "note": "An ordinary combinational for loop over a module-level integer - a population count. Used to fail, on hif-backend#80: the loop index is shadowed and its write-back was appended to the init and step clauses with a comma, which is not Verilog. Fixed in verilog2hif, which now publishes the index once after the loop. Reachable from the plainest use of the construct, with no generate and no disable involved."
 }

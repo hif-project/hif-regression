@@ -6,11 +6,12 @@
 -- two defects in one fixture would make neither attributable. This design is
 -- the other side: it indexes nothing and only holds a constant.
 --
--- hif2verilog sizes a bitvector literal as left-right+1, which is the width
--- only for a descending range. For (0 to 3) that is -2, and the constant is
--- emitted as `-2'b1100`: iverilog takes two bits, truncates to 2'b00, negates
--- to zero, warns twice and exits 0. The mask becomes all zeros, so the design
--- outputs nothing at all rather than the two bits it should keep.
+-- hif2verilog used to size a bitvector literal as left-right+1, which is the
+-- width only for a descending range. For (0 to 3) that was -2, and the constant
+-- was emitted as `-2'b1100`: iverilog took two bits, truncated to 2'b00,
+-- negated to zero, warned twice and exited 0. The mask became all zeros, so the
+-- design output nothing at all rather than the two bits it should keep. The
+-- size is now the distance between the bounds.
 library ieee;
 use ieee.std_logic_1164.all;
 

@@ -1,0 +1,12 @@
+# One claim: the regenerated design behaves like the design it came from.
+#
+# `chain` and `wide` are the two shifts of a shift. s has its top bit set in most rows, so a
+# zero-extended inner shift loses the sign the outer arithmetic shift is meant to propagate.
+
+runs: []
+
+expectations:
+  - id: regenerated_matches_rtl
+    use: trace_equal
+    left:  {from: simulate_reference,   run: reference}
+    right: {from: simulate_regenerated, run: regenerated}

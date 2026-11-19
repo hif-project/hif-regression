@@ -1,6 +1,7 @@
 # One claim: the constant in the Verilog hif2verilog regenerates from this VHDL
-# still holds "1100". It does not - see hif-backend#91 - so this design is a
-# declared expected failure at `validate`.
+# still holds "1100". It did not - see hif-backend#91, where it was a declared
+# expected failure at `validate` - and now does: the literal's size is no
+# longer negative.
 #
 # No VHDL simulator exists here, so the expected trace is computed by hand from
 # the VHDL rather than compared against a reference run of the source. VHDL's

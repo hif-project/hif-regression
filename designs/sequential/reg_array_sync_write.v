@@ -1,18 +1,20 @@
 // A four-word register file: an unpacked array with a clocked indexed write
 // and a combinational indexed read. The smallest useful memory there is.
 //
-// *** THIS DESIGN CURRENTLY FAILS, DELIBERATELY. ***
-//
-// hif2verilog regenerates `reg [7:0] mem [0:3]` as
+// This used to fail, on hif-backend#87: hif2verilog regenerated
+// `reg [7:0] mem [0:3]` as
 //
 //   reg [3:0] mem = 08'bxxxxxxxx18'bxxxxxxxx28'bxxxxxxxx38'bxxxxxxxx;
 //
 // taking the array *range* as the vector width, discarding the element width,
-// and printing the default as four run-together index/value pairs. The result
-// does not parse - hif-backend#87.
+// and printing the default as four run-together index/value pairs. That did
+// not parse. It now prints `reg [7:0] mem [0:3];` with no initializer, and the
+// process that reads the memory is sensitive to `@(*)`, since Verilog rejects a
+// memory in an event list.
 //
-// The corpus has no memory of any kind, and cannot have one until that is
-// fixed. This design is what says so, and what will go green when it is.
+// The corpus had no memory of any kind until this was fixed. This design is
+// what records that it now has one. Its pipeline is structural: it checks the
+// regenerated file reparses, not what the memory reads back.
 module reg_array_sync_write(
     input clk,
     input we,

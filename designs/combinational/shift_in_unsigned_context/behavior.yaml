@@ -1,0 +1,14 @@
+# One claim: the regenerated design behaves like the design it came from.
+#
+# `unsigned_ctx` is the discriminating output: a logical shift of s, because the sum has
+# an unsigned operand. `bare` is arithmetic, and is what typing the shift by its first
+# operand alone is for; the two outputs are what a fix that went back to "any unsigned
+# operand makes it unsigned", or forward to "never", would each get half wrong.
+
+runs: []
+
+expectations:
+  - id: regenerated_matches_rtl
+    use: trace_equal
+    left:  {from: simulate_reference,   run: reference}
+    right: {from: simulate_regenerated, run: regenerated}

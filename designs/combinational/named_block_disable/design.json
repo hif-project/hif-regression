@@ -1,0 +1,11 @@
+{
+    "top": "named_block_disable",
+    "pipeline": "behavioral_roundtrip",
+    "sources": [
+        "named_block_disable.v"
+    ],
+    "fixtures": {
+        "testbench": "named_block_disable_tb.v"
+    },
+    "note": "A named block disabled to break out of a loop - the first-set-bit scan, so the result depends on the loop stopping at the first set bit. Found hif-backend#85, which dropped the named block and its `disable`: the regenerated loop ran to completion and reported the last set bit (seven for d = 8'b1001_0110, where the source says one). Behavioral because the regenerated file is valid Verilog that reparses cleanly; only the answer differs. While hif-backend#80 stood in the way the failure was recorded at the reparse, which hid this."
+}

@@ -1,0 +1,13 @@
+# One claim: the regenerated design behaves like the design it came from.
+#
+# Every output is a different context for the same signed operand. 48 rows: the corner
+# values of each input, then pseudo-random ones, so that negative t and s meet both
+# large and small unsigned operands.
+
+runs: []
+
+expectations:
+  - id: regenerated_matches_rtl
+    use: trace_equal
+    left:  {from: simulate_reference,   run: reference}
+    right: {from: simulate_regenerated, run: regenerated}

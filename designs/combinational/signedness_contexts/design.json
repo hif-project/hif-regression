@@ -1,0 +1,11 @@
+{
+    "top": "signedness_contexts",
+    "pipeline": "behavioral_roundtrip",
+    "sources": [
+        "signedness_contexts.v"
+    ],
+    "fixtures": {
+        "testbench": "signedness_contexts_tb.v"
+    },
+    "note": "One signed operand in many contexts: an unsigned a against a signed t in a relational operator and in a conditional's arms, a three-operand sum with one unsigned operand, a logical right shift of a signed value, and signed comparisons. Verilog gives an expression one signedness, signed only if every operand is, and extends every operand by it. Found in re-review of the hif-backend#81 fix: the first version of its sign-extension looked only at the direct parent, so it sign-extended where Verilog zero-extends (a relational, a conditional, a sum with an unsigned operand beyond the first) and sign-extended a logical right shift; and the sign-extended text is a concatenation, which Verilog reads as unsigned, so even the signed comparisons were evaluated unsigned. Behavioral, because every regeneration is valid Verilog that reparses cleanly and only the values differ."
+}
