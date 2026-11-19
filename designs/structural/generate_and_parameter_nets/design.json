@@ -1,0 +1,11 @@
+{
+    "top": "generate_and_parameter_nets",
+    "pipeline": "behavioral_roundtrip",
+    "sources": [
+        "generate_and_parameter_nets.v"
+    ],
+    "fixtures": {
+        "testbench": "generate_and_parameter_nets_tb.v"
+    },
+    "note": "Nets driven by continuous assigns whose index is not an integer literal: a for generate that leaves bit 3 of a net undriven, a for generate plus one more driver on bit 1, and a parameter as the index of one of two drivers of a bit. Once a for generate is expanded its index is a bit string, and a parameter is a name; neither was read as the constant it is, so the nets were lowered to processes: bit 3 read x where the source reads z, and the two drivers of a bit no longer resolved. Found in review of the hif-frontend change that keeps continuous assigns that carry net semantics (hif-backend#88, #104); 149 to 400 of 400 vectors differed. Behavioral against the design's own source, with the enables and the second driver exercised in every combination."
+}

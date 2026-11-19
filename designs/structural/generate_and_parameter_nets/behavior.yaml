@@ -1,0 +1,14 @@
+# One claim: the regenerated design behaves like the design it came from.
+#
+# Traces are in %b so that z and x differ from 0 and 1: `partial_gen[3]` is z in the source and
+# was x regenerated, and the two drivers of a bit are only resolved when the net is kept as a
+# net. The first rows set the enable of the second driver and the parameter-indexed one in
+# every combination.
+
+runs: []
+
+expectations:
+  - id: regenerated_matches_rtl
+    use: trace_equal
+    left:  {from: simulate_reference,   run: reference}
+    right: {from: simulate_regenerated, run: regenerated}
