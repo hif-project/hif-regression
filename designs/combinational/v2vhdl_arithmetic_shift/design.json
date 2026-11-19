@@ -1,0 +1,11 @@
+{
+    "top": "v2vhdl_arithmetic_shift",
+    "pipeline": "verilog_to_vhdl",
+    "sources": [
+        "v2vhdl_arithmetic_shift.v"
+    ],
+    "fixtures": {
+        "testbench": "v2vhdl_arithmetic_shift_tb.v"
+    },
+    "note": "Arithmetic shifts toward VHDL and back: of a signed and of an unsigned value, by a vector count and by a constant, and one nested in an unsigned sum. numeric_std has no sra or sla operator: the arithmetic right shift of a signed value is the function shift_right on a signed, and Verilog's >>> on an unsigned value is the logical shift_right on an unsigned. Found in review of the hif-backend#94 fix, which printed `unsigned(a) sra n` for the signed case - an operator numeric_std does not define, which vhdl2hif accepted anyway - and then aborted outright on a constant count, whose standardized operand is a call with no declaration. The excursion has to preserve behaviour; the VHDL text is what hif-backend's unit tests check."
+}
