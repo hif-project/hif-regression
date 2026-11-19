@@ -1,0 +1,11 @@
+{
+    "top": "mixed_signedness_add",
+    "pipeline": "behavioral_roundtrip",
+    "sources": [
+        "mixed_signedness_add.v"
+    ],
+    "fixtures": {
+        "testbench": "mixed_signedness_add_tb.v"
+    },
+    "note": "One signed operand, two contexts. `mixed = a + b` has an unsigned a, so Verilog evaluates the whole expression unsigned and zero-extends the signed b: a = 36, b = -127 gives 165. `both_signed = b + c` has only signed operands and extends by sign. Found in review of the hif-backend#81 fix, which sign-extended every signed source it widened and so got the first one wrong (207 of 400 random vectors differed) while getting the second right. Behavioral, because both regenerations are valid Verilog that reparses cleanly and only the arithmetic differs; the text of the regenerated file cannot say which context a cast sits in."
+}

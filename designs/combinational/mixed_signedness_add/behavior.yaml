@@ -1,0 +1,15 @@
+# One claim: the regenerated design behaves like the design it came from.
+#
+# The same signed operand b is zero-extended in `a + b` (a is unsigned, so the
+# whole expression is) and sign-extended in `b + c` (everything is signed).
+# Row two, a = 36 and b = -127, separates them most plainly: 165 against -91.
+# The rows with b or c negative and a large are the ones a printer that always
+# sign-extends, or always zero-extends, gets wrong on one output or the other.
+
+runs: []
+
+expectations:
+  - id: regenerated_matches_rtl
+    use: trace_equal
+    left:  {from: simulate_reference,   run: reference}
+    right: {from: simulate_regenerated, run: regenerated}
