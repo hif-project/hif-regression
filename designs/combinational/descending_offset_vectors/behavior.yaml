@@ -1,0 +1,12 @@
+# One claim: the regenerated design behaves like the design it came from.
+#
+# `hi`, `lo` and `bit5` select by the source's indices from a vector declared [7:0] on the way
+# back; `wide` is the control, a widening that uses the declared width and is right.
+
+runs: []
+
+expectations:
+  - id: regenerated_matches_rtl
+    use: trace_equal
+    left:  {from: simulate_reference,   run: reference}
+    right: {from: simulate_regenerated, run: regenerated}
